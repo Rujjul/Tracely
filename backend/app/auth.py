@@ -103,13 +103,19 @@ def verify_password(encoded, password):
 
 
 def cookie(response, name, value, seconds):
+    # Login sessions also authorize project routes. Remove the old narrower cookie
+    # when replacing a session so browsers cannot send two different login tokens.
+    if name == SESSION_COOKIE:
+        response.delete_cookie(name, path='/api/v1/auth')
     response.set_cookie(name, value, max_age=seconds, httponly=True,
                         secure=os.getenv('COOKIE_SECURE', 'false').lower() == 'true',
-                        samesite='lax', path='/api/v1/auth')
+                        samesite='lax', path='/api/v1' if name == SESSION_COOKIE else '/api/v1/auth')
 
 
 def clear_cookie(response, name):
     response.delete_cookie(name, path='/api/v1/auth')
+    if name == SESSION_COOKIE:
+        response.delete_cookie(name, path='/api/v1')
 
 
 def issue_session(connection, request, response, user, purpose='login', subject=None):
@@ -154,13 +160,16 @@ def login(body: Credentials, request: Request, response: Response, connection=De
 
 
 @router.get('/me')
-def me(request: Request, connection=Depends(db)):
+def me(request: Request, connection=Depends(db), response: Response = None):
     token = request.cookies.get(SESSION_COOKIE, '')
     row = connection.execute('''SELECT u.id,u.email,s.expires_at FROM auth_sessions s
         JOIN users u ON u.id=s.user_id WHERE s.token_hash=%s AND s.purpose='login'
         AND s.expires_at > now()''', (digest(token),)).fetchone()
     if not row:
         raise HTTPException(401, 'Please sign in')
+    if response is not None:
+        # Migrate existing browser cookies without extending the original expiry.
+        cookie(response, SESSION_COOKIE, token, max(0, int((row['expires_at'] - now()).total_seconds())))
     return {'user': {'id': str(row['id']), 'email': row['email']}, 'expires_at': row['expires_at'].isoformat()}
 
 

@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import psycopg
 from app.auth import router
+from app.projects import router as projects_router
 
 app = FastAPI(title="Tracely API", version="0.1.0")
 app.add_middleware(
@@ -20,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(projects_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -34,7 +36,7 @@ async def invalid_request(request, exception):
 @app.middleware('http')
 async def private_auth_responses(request, call_next):
     response = await call_next(request)
-    if request.url.path.startswith('/api/v1/auth'):
+    if request.url.path.startswith(('/api/v1/auth', '/api/v1/projects')):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Referrer-Policy'] = 'no-referrer'
     return response

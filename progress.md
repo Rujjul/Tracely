@@ -1,12 +1,12 @@
 # Tracely progress
 
-Updated: 2026-09-28
+Updated: 2026-10-04
 
 ## Current scope
 
-Phases 1 and 2 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, and 30-minute sessions. A real Google account completion remains a manual verification step. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Phase 3 has not started.
+Phases 1–3 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, and hashed ingestion keys with rotation. A real Google account completion remains a manual verification step. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Phase 4 event ingestion has not started.
 
-## Latest checkpoint — Phase 2 data-model review
+## Previous checkpoint — Phase 2 data-model review
 
 - [x] Read `DATA_MODEL.md` and compared its account/database requirements with the implementation.
 - [x] Confirmed the required user columns, UUID user IDs, unique normalized emails, established password hashing, foreign keys, and timezone-aware UTC timestamps.
@@ -15,7 +15,7 @@ Phases 1 and 2 are implemented: React/Vite, FastAPI, PostgreSQL, account migrati
 - [x] All nine backend tests passed; API health reported `storage: connected` after the update.
 - [ ] Complete a real Google sign-in and return to the dashboard for final provider verification.
 
-Phase 2 matches the relevant data-model requirements. No Phase 3 or later backend features were added.
+At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 3 work is recorded below.
 
 ## Remaining Phase 2 verification
 
@@ -23,9 +23,25 @@ Phase 2 matches the relevant data-model requirements. No Phase 3 or later backen
 - [ ] For an existing password account with the same Google email, confirm that linking requires the existing password.
 - [ ] Confirm the real Google session survives a page refresh and is revoked by Sign out.
 
-These are manual provider checks; their corresponding local authentication paths already passed automated tests. Phase 3 remains not started.
+These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Phase 3 — Projects and ingestion keys
+
+- [x] Migration `0003_projects` adds `projects` and `project_keys` with UUID primary keys, ownership foreign keys, UTC timestamps, unique key hashes, and at most one active key per project.
+- [x] `POST /api/v1/projects` creates an owned project and returns its plaintext ingestion key once.
+- [x] `GET /api/v1/projects` lists only the signed-in owner's projects with safe key prefixes; never returns plaintext keys or hashes.
+- [x] `POST /api/v1/projects/{project_id}/keys/rotate` atomically revokes previous keys and generates a replacement. Project row locking serializes concurrent rotations.
+- [x] Keys use 32 random bytes (256 bits); only SHA-256 hashes and short display prefixes are persisted. Responses are `Cache-Control: no-store`.
+- [x] Unauthorized access returns 401; another owner's project returns 404. Ingestion keys cannot authorize project management. Project creation cannot override ownership.
+- [x] Projects & Keys frontend supports creation, listing, copying a newly issued key, one-time dismissal, explicit rotation confirmation, loading/error/empty states, and expired-session handling.
+- [x] Login cookie path now covers `/api/v1`; `/auth/me` upgrades old cookies without extending session expiry. Logout clears both cookie paths. Google linking cookies remain restricted to auth routes.
+- [x] All 16 backend tests passed (nine authentication regression tests and seven project tests), including concurrent rotation, rollback on replacement failure, cross-owner rejection, cookie migration, and expired sessions.
+- [x] Browser checks passed for project creation, clipboard copying, key dismissal, refresh persistence without key disclosure, rotation cancellation/confirmation, logout, and mobile layout. No browser errors. Synthetic test account and its projects were removed afterward.
+- [x] Frontend production build passed. Migration `0003_projects` applied to the local PostgreSQL database.
+
+### Earlier phases
 
 - [x] Tracely branding and responsive React + TypeScript + Vite application.
 - [x] Overview with sample metrics, traffic chart, service health, and incident summary.
@@ -39,7 +55,7 @@ These are manual provider checks; their corresponding local authentication paths
 - [x] PostgreSQL 17 Compose service with readiness check and named persistent volume.
 - [x] Local-only database access on `127.0.0.1:5433` (5432 was already occupied).
 - [x] Root `.env.example`, ignored local `.env`, and Python PostgreSQL driver.
-- [x] Alembic migration `0001_accounts`: users, hashed session tokens, and temporary OAuth state. No projects, API keys, or events tables.
+- [x] Alembic migration `0001_accounts`: users, hashed session tokens, and temporary OAuth state; project tables were added later in `0003_projects`.
 - [x] Data-model alignment migration `0002_auth_uuid_keys`: UUID primary keys for session and OAuth-state tables; token/state hashes remain unique. Existing rows and sessions are preserved. Required user columns, normalized unique email, Argon2id hashing, foreign keys, and timezone-aware UTC storage already matched `DATA_MODEL.md`.
 - [x] Separate responsive Sign up and Sign in screens with validation, password visibility, confirmation, loading, and error states.
 - [x] Normalized unique email addresses and Argon2id password hashes (12–128-character registration passwords).
@@ -63,7 +79,7 @@ These are manual provider checks; their corresponding local authentication paths
 - Phase 2: nine tests passed after the data-model review. Coverage includes migration setup in disposable schemas, existing-data preservation, UUID keys, duplicate accounts, password hashing, invalid credentials, unauthenticated access, expiry, logout revocation, origin validation, Google linking, OAuth state replay, invalid nonce/unverified email, disabled Google configuration, and throttling. Provider responses are mocked in automated Google flow tests.
 - Phase 2 browser checks passed: register → dashboard → refresh → sign out → incorrect password → successful sign in, plus mobile overflow and console checks. Frontend production build passed.
 - Live Google authorization opens Google's sign-in page displaying “to continue to Tracely.” A full real-account consent/callback has not been performed; the user must complete that last manual check.
-- Data-model review: all nine tests passed after UUID-key alignment, including migration of existing session/OAuth rows and continued uniqueness enforcement. Local migration is at `0002_auth_uuid_keys`; PostgreSQL timezone is UTC. No Phase 3 tables or features added.
+- At the Phase 2 data-model checkpoint, all nine tests passed after UUID-key alignment. Migration was `0002_auth_uuid_keys`; PostgreSQL timezone was UTC. Phase 3 subsequently added project tables through `0003_projects`.
 
 ## Run locally (PowerShell)
 
@@ -125,7 +141,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 |---|---|---|
 | 1. Local setup | Complete | None; PostgreSQL starts and API connection works |
 | 2. Database & accounts | Implemented; data-model aligned; nine tests and browser checks passed | User completes real Google sign-in for final provider end-to-end verification |
-| 3. Projects & keys | Not started | Ownership, hashed keys, rotation |
+| 3. Projects & keys | Complete; backend and browser checks passed | None; event ingestion remains Phase 4 |
 | 4. Event ingestion | Not started | Validation, storage, idempotency |
 | 5. Demo service | Not started | Real instrumentation and fault toggles |
 | 6. Log explorer | Frontend preview only | Live retrieval, pagination, authorization |
@@ -140,4 +156,4 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-No projects, API keys, event ingestion, detector, or investigator have been implemented. Email delivery, password reset, and email verification for password registrations are outside this phase. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
+Event ingestion, detection, and investigation have not been implemented. Ingestion keys are provisioned now but cannot submit events until Phase 4. Email delivery, password reset, and email verification for password registrations are outside this phase. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
