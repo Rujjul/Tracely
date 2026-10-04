@@ -27,6 +27,15 @@ These are manual provider checks; their corresponding local authentication paths
 
 ## Completed
 
+### Delete Project — 2026-10-04
+
+- [x] Projects & Keys includes Delete project with a permanent-deletion warning, exact typed-name confirmation, and cancellation.
+- [x] `DELETE /api/v1/projects/{project_id}` requires a valid owner session, trusted Origin, and exact `confirmation_name`. Other owners receive 404; missing authentication receives 401; mismatched names receive 422.
+- [x] Project, all active/revoked keys, and existing events are deleted atomically through existing cascading foreign keys. Success is returned only after commit; failure rolls the transaction back. No new migration required.
+- [x] UI removes the deleted project, refreshes the list, reports success, and displays deletion/refresh errors. Other projects and accounts remain untouched.
+- [x] All 19 backend tests and frontend production build passed, including deletion authorization, confirmation rejection, cascade cleanup, unrelated-data preservation, and rollback on a simulated related-data deletion failure.
+- [x] Browser checks passed for exact-name gating, cancellation, a simulated API error, successful deletion, list refresh, and reload persistence. Temporary test account was removed afterward.
+
 ### Phase 3 — Projects and ingestion keys
 
 - [x] Migration `0003_projects` adds `projects` and `project_keys` with UUID primary keys, ownership foreign keys, UTC timestamps, unique key hashes, and at most one active key per project.

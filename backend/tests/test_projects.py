@@ -1,6 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
@@ -13,6 +13,70 @@ from test_auth import client, register, ORIGIN
 
 def create(client, name='Payments API'):
     return client.post('/api/v1/projects', headers=ORIGIN, json={'name': name})
+
+
+def delete(client, project_id, name='Payments API', headers=ORIGIN):
+    return client.request('DELETE', f'/api/v1/projects/{project_id}', headers=headers,
+                          json={'confirmation_name': name})
+
+
+def seed_event(project_id):
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        connection.execute('''INSERT INTO events(id,project_id,event_id,timestamp,event_type,level,service,message)
+            VALUES (%s,%s,%s,now(),'request','INFO','test','Deletion test')''', (uuid4(), project_id, uuid4()))
+
+
+def test_delete_authorization_and_confirmation(client):
+    assert delete(client, uuid4()).status_code == 401
+    register(client, 'owner@example.com')
+    data = create(client).json()
+    project_id = data['project']['id']
+    assert delete(client, project_id, 'payments api').status_code == 422
+    assert delete(client, project_id, 'Payments API ').status_code == 422
+    assert delete(client, project_id, headers={}).status_code == 403
+    assert len(client.get('/api/v1/projects').json()['projects']) == 1
+    client.post('/api/v1/auth/logout', headers=ORIGIN)
+    assert delete(client, project_id, headers={**ORIGIN, 'Authorization':'Bearer '+data['ingestion_key']}).status_code == 401
+    register(client, 'other@example.com')
+    assert delete(client, project_id).status_code == 404
+    assert delete(client, uuid4()).status_code == 404
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        assert connection.execute('SELECT count(*) FROM projects').fetchone()[0] == 1
+
+
+def test_delete_cascades_and_preserves_other_project(client):
+    register(client)
+    removed = create(client).json()['project']['id']
+    kept = create(client, 'Keep me').json()['project']['id']
+    seed_event(removed)
+    seed_event(kept)
+    client.post(f'/api/v1/projects/{removed}/keys/rotate', headers=ORIGIN)
+    response = delete(client, removed)
+    assert response.status_code == 200
+    assert response.json()['status'] == 'deleted'
+    assert response.headers['cache-control'] == 'no-store'
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        assert connection.execute('SELECT id FROM projects').fetchall() == [(UUID(kept),)]
+        for table in ('project_keys', 'events'):
+            assert connection.execute(f'SELECT count(*) FROM {table} WHERE project_id=%s', (removed,)).fetchone()[0] == 0
+            assert connection.execute(f'SELECT count(*) FROM {table} WHERE project_id=%s', (kept,)).fetchone()[0] == 1
+        assert connection.execute('SELECT count(*) FROM users').fetchone()[0] == 1
+    assert delete(client, removed).status_code == 404
+    assert len(client.get('/api/v1/projects').json()['projects']) == 1
+
+
+def test_delete_failure_rolls_back_all_related_records(client):
+    register(client)
+    project_id = create(client).json()['project']['id']
+    seed_event(project_id)
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        connection.execute("""CREATE FUNCTION reject_event_delete() RETURNS trigger LANGUAGE plpgsql AS
+            $$ BEGIN RAISE EXCEPTION 'Simulated deletion failure'; END $$""")
+        connection.execute('CREATE TRIGGER reject_delete BEFORE DELETE ON events FOR EACH ROW EXECUTE FUNCTION reject_event_delete()')
+    assert delete(client, project_id).status_code == 503
+    with psycopg.connect(os.environ['DATABASE_URL']) as connection:
+        for table in ('projects','project_keys','events'):
+            assert connection.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 1
 
 
 def test_create_list_and_hashed_storage(client):

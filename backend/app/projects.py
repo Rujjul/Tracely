@@ -14,6 +14,11 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
 
+class ProjectDelete(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    confirmation_name: str = Field(min_length=1, max_length=100)
+
+
 def current_user(request: Request, connection=Depends(db)):
     # Only a live login cookie authorizes project reads; ingestion keys never do.
     return me(request, connection)['user']
@@ -52,3 +57,17 @@ def rotate_key(project_id: UUID, user=Depends(current_user), connection=Depends(
         raise HTTPException(404, 'Project not found')
     connection.execute('UPDATE project_keys SET revoked_at=now() WHERE project_id=%s AND revoked_at IS NULL', (project_id,))
     return {'project': project, **new_key(connection, project_id)}
+
+
+@router.delete('/{project_id}', dependencies=[Depends(same_origin)])
+def delete_project(project_id: UUID, body: ProjectDelete, user=Depends(current_user), connection=Depends(db)):
+    project = connection.execute('SELECT id,name FROM projects WHERE id=%s AND owner_id=%s FOR UPDATE',
+                                 (project_id, user['id'])).fetchone()
+    if not project:
+        raise HTTPException(404, 'Project not found')
+    if body.confirmation_name != project['name']:
+        raise HTTPException(422, 'Project name does not match. Type the exact project name to delete it.')
+    # Existing project_keys and events foreign keys cascade in this transaction.
+    connection.execute('DELETE FROM projects WHERE id=%s AND owner_id=%s', (project_id, user['id']))
+    connection.commit()  # Report success only after all cascades commit.
+    return {'status': 'deleted', 'project_id': project_id}
