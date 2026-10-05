@@ -48,6 +48,8 @@ Keep login and project keys out of URL query strings. Document token expiry and 
 
 Return 201 after persistence, 200 for a replay. Batch ingestion is deferred until needed by load tests.
 
+Implemented Phase 4 validation: `event_type` is `request` or `exception`; `level` is `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `CRITICAL`, or `FATAL`. Field types are strict, unknown fields are rejected, and service names must be nonblank (maximum 255 characters). Optional endpoint and exception type are each capped at 2 KiB UTF-8. Metadata must be a JSON object. Unsupported content types or compressed bodies return 415; malformed JSON and invalid fields return 422; body or field size violations return 413. A per-key limit of 600 attempts per rolling minute returns 429 with `Retry-After` (local single-process enforcement). Common secret patterns are redacted before storage. A replay preserves the originally stored event even if retry fields differ. No event-reading endpoint is implemented yet.
+
 ## Investigation response
 
 ```json
