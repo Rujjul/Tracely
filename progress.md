@@ -4,7 +4,7 @@ Updated: 2026-10-05
 
 ## Current scope
 
-Phases 1–4 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, and hashed ingestion keys with rotation. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Validated, idempotent event ingestion is implemented; Phase 5 has not started.
+Phases 1–5 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Phase 6's live event-reading API and explorer have not started.
 
 ## Previous checkpoint — Phase 2 data-model review
 
@@ -36,6 +36,20 @@ At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 
 These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Phase 5 — Demo service and instrumentation, 2026-10-05
+
+- [x] Added an independent FastAPI demo under `demo-app/`, its dependency list, ignored local environment setup, and detailed run instructions. `POST /payments` only simulates payments; no real payments or dependencies are modified.
+- [x] Each application request emits one request event with UUID event/request IDs, UTC timestamp, status, measured latency, route template, and safe exception frames. Responses expose correlation IDs. Exceptions do not create a second request count. Health, documentation, and control requests are excluded.
+- [x] Source privacy excludes bodies, headers, query strings, raw request paths, exception messages, stack source lines, and locals. Fault ground truth is recorded by the scenario runner rather than added to telemetry.
+- [x] A bounded 128-event queue delivers asynchronously with a one-second attempt timeout, at most three attempts, stable retry IDs, delivery/drop/retry counters, and a five-second shutdown drain. Ingestion failures do not break demo requests. Ordinary 4xx are not retried; long rate-limit waits cause counted drops rather than early retries.
+- [x] Implemented `db_timeout` (500), `unhandled_exception` (500), and `slow_dependency` (successful 200 with increased latency), plus `none` for recovery. Controls require explicit configuration, loopback peer/Host checks, and a separate control token. Faults start disabled and reset to healthy on restart.
+- [x] Added a scenario runner for healthy traffic before and after each fault, automatic reset, UTC stage boundaries, correlated response IDs, and delivery checks. This is a functional smoke run; Phase 12's detector benchmarks remain deferred.
+- [x] Five new tests cover real PostgreSQL ingestion across all faults/recovery, duplicate prevention after a lost acknowledgement, source privacy, control authorization, bounded queues/shutdown, rejected keys, and ingestion outages. Full suite: **38 tests passed**.
+- [x] Live run against the existing API persisted exactly **14 events**: four failures and ten healthy/slow successes, with **zero dropped events**. All response event IDs matched stored rows; fault state returned to `none`. The temporary demo process and synthetic account/project/events were cleaned up.
+- [x] Existing API/database health and frontend HTTP 200 verified. Existing frontend/backend implementation and Docker Compose were preserved; no Phase 6 event-read endpoint, live explorer, detector, or investigator was added.
+
+To run the demo yourself, follow `demo-app/README.md`: create a dedicated project in Projects & Keys, put its one-time ingestion key in `demo-app/.env`, configure a separate control token, and start the demo on loopback port 8001. Run `run_scenarios.py` from that directory. The verification key was discarded during cleanup; no real user key was stored or changed. The demo queue is best-effort and non-durable, and its controls require a single local worker with proxy-header handling disabled.
 
 ### Password recovery — 2026-10-05
 
@@ -117,7 +131,8 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 
 ## Verification
 
-- Latest full suite: **33 backend tests passed** (11 authentication, six password recovery, ten project, and six event-ingestion tests). Earlier counts below describe historical checkpoints.
+- Latest full suite: **38 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, and five demo-service tests). Earlier counts below describe historical checkpoints.
+- Phase 5 live smoke persisted all 14 expected events with no drops, verified fault recovery, and removed only its synthetic test records. Existing frontend returned HTTP 200; backend reported `storage: connected`.
 - Latest frontend production build and password-recovery browser checks passed; migration `0005_password_resets` was applied and API health reported `storage: connected`.
 - Real Google sign-in is user-confirmed. Real password-reset email delivery remains unverified until SMTP credentials are configured.
 - TypeScript check and production build passed (`npm run build`).
@@ -202,7 +217,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | 2. Database & accounts | Implemented; data-model aligned; Google sign-in user-confirmed; password recovery added; 17 auth/recovery tests passed | Configure SMTP and verify real reset email; finish specific Google linking and refresh/sign-out manual checks |
 | 3. Projects & keys | Complete; backend and browser checks passed | None; event ingestion remains Phase 4 |
 | 4. Event ingestion | Complete; schema and validated idempotent endpoint | None; demo instrumentation and live explorer remain later phases |
-| 5. Demo service | Not started | Real instrumentation and fault toggles |
+| 5. Demo service | Complete; five demo tests and live ingestion smoke passed | Configure a dedicated local demo key/control token to run it yourself; instructions in `demo-app/README.md` |
 | 6. Log explorer | Frontend preview only | Live retrieval, pagination, authorization |
 | 7. Incident detector | Not started | Rolling windows and incident lifecycle |
 | 8. Exception grouping | Not started | Fingerprints and real incident evidence |

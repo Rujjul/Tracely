@@ -62,6 +62,10 @@ traceai/
 
 These Markdown files can be placed in `docs/` when the code repository is created. Do not commit `.env`, real API keys, source logs with personal data, or generated event dumps.
 
+## Phase 5 demo service (implemented)
+
+Phase 5's separate demo service, fault controls, telemetry behavior, and local setup are documented in [demo-app/README.md](demo-app/README.md). Run it on port 8001 with a dedicated project ingestion key. Live event browsing and detection remain later phases.
+
 ## Password recovery (implemented)
 
 Choose **Forgot password?** on Sign in, enter your account email, then use the emailed link to choose and confirm a new password. Links expire after 15 minutes and work once. Resetting revokes all existing login and Google-linking sessions. Google-only accounts continue using Google sign-in. A replacement link invalidates the old link; email requests are limited to one per minute per account, in addition to the authentication attempt limit.
