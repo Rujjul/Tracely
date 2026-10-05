@@ -4,7 +4,7 @@ Updated: 2026-10-05
 
 ## Current scope
 
-Phases 1–5 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Phase 6's live event-reading API and explorer have not started.
+Phases 1–6 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. The Events page now reads stored project data with owner-only access, filters, pagination, and details. Overview charts/recent events and incidents remain labeled sample data. Phase 7 detection has not started.
 
 ## Previous checkpoint — Phase 2 data-model review
 
@@ -36,6 +36,19 @@ At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 
 These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Phase 6 — Live event explorer, 2026-10-05
+
+- [x] Added `GET /api/v1/projects/{project_id}/events` and `GET /api/v1/projects/{project_id}/events/{event_id}`. Both require a live owner login cookie; ingestion keys cannot read events. Other-owner/missing projects and missing events return 404, and missing/expired sessions return 401.
+- [x] Added combined filters for exact service, level, literal case-insensitive text, and offset-aware received-time bounds. The start is inclusive, the end exclusive; UI inputs and displayed times are explicitly UTC. Invalid filters/cursors return 422.
+- [x] Added bounded keyset pagination (default 50, maximum 100), ordered by received time and UUID. Cursors bind project and filters and retain the initial received-time cutoff. Refresh starts again with newer arrivals. List responses omit large stack/metadata fields; details fetch them separately.
+- [x] Replaced the Events page's sample table with an owned-project selector, service/level/text/time controls, 25/50/100 page sizes, Next/Previous, refresh, and stored detail dialog. Details include event/request timestamps, event ID, status, latency, exception, stack trace, and metadata.
+- [x] Added loading, no-project/no-event, validation, retry, and expired-session handling. Project/filter changes reset pagination; obsolete fetches are aborted and cannot replace current data. Detail dialog supports keyboard focus and Escape; event content is rendered as text.
+- [x] Updated preview labels and setup text: only overview charts/recent sample events and incidents remain previews. No detector, incident lifecycle, or live overview API was added.
+- [x] Five new API tests verify cross-owner isolation, rejection of ingestion keys, detail scoping, combined/timezone/literal filters, malformed inputs, empty/deleted projects, same-time pagination, and new arrivals between pages. All **43 backend tests passed**.
+- [x] Frontend TypeScript/production build passed. Browser verification used 56 real stored synthetic events across two owned projects and checked pagination, combined filters, detail content, safe HTML-like text rendering, Escape, empty results, invalid time range, error/retry, mobile overflow, and expired-session handling. Simulated errors were used only for browser error/expiry states.
+- [x] Synthetic browser accounts/projects/events were removed. Existing API was restarted with the new routes. No migration or new dependency was required, and existing ingestion, auth, project, recovery, and demo tests remained green.
+- [x] Updated `API.md`, root `README.md`, and `demo-app/README.md` with browsing behavior and setup. To view your data, sign in, open Events, choose a project, and refresh after sending telemetry.
 
 ### Phase 5 — Demo service and instrumentation, 2026-10-05
 
@@ -80,7 +93,7 @@ Delivery uses an in-process background task, not a durable mail queue. If delive
 - [x] Final ingestion checks passed again after redaction/schema refinements. OpenAPI includes the event body and project-key authorization. Frontend production build passed after updating availability text.
 - [x] Live API smoke check: 201 on first insert, 200 on replay, 401 without an ingestion key, exactly one persisted event, and healthy database connection. Synthetic account, project, keys, and event were removed afterward.
 
-Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a project ingestion key, then submit the example in `API.md` to `POST /api/v1/events`. Do not use a browser session token. The response confirms storage only, not incident detection. No batching, demo service, live event-reading endpoint, detector, or investigator was added.
+Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a project ingestion key, then submit the example in `API.md` to `POST /api/v1/events`. Do not use a browser session token. The response confirms storage only, not incident detection. At the Phase 4 checkpoint, no batching, demo service, live event-reading endpoint, detector, or investigator was added. Demo instrumentation and event browsing were subsequently implemented in Phases 5 and 6.
 
 ### Delete Project — 2026-10-04
 
@@ -131,7 +144,7 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 
 ## Verification
 
-- Latest full suite: **38 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, and five demo-service tests). Earlier counts below describe historical checkpoints.
+- Latest full suite: **43 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, five demo-service, and five event-reading tests). Earlier counts below describe historical checkpoints.
 - Phase 5 live smoke persisted all 14 expected events with no drops, verified fault recovery, and removed only its synthetic test records. Existing frontend returned HTTP 200; backend reported `storage: connected`.
 - Latest frontend production build and password-recovery browser checks passed; migration `0005_password_resets` was applied and API health reported `storage: connected`.
 - Real Google sign-in is user-confirmed. Real password-reset email delivery remains unverified until SMTP credentials are configured.
@@ -218,7 +231,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | 3. Projects & keys | Complete; backend and browser checks passed | None; event ingestion remains Phase 4 |
 | 4. Event ingestion | Complete; schema and validated idempotent endpoint | None; demo instrumentation and live explorer remain later phases |
 | 5. Demo service | Complete; five demo tests and live ingestion smoke passed | Configure a dedicated local demo key/control token to run it yourself; instructions in `demo-app/README.md` |
-| 6. Log explorer | Frontend preview only | Live retrieval, pagination, authorization |
+| 6. Log explorer | Complete; owner-protected list/details, filters, pagination, browser checks | None; detection and live overview/incident views remain later phases |
 | 7. Incident detector | Not started | Rolling windows and incident lifecycle |
 | 8. Exception grouping | Not started | Fingerprints and real incident evidence |
 | 9. Incident dashboard | Frontend preview only | Real overview and incident endpoints |
@@ -230,4 +243,4 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-Detection and investigation have not been implemented. Ingestion keys now accept events, while dashboard logs remain sample data until Phase 6. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
+Detection and investigation have not been implemented. The Events page now shows stored data; overview charts/recent events and incident views remain sample previews until later phases. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
