@@ -13,7 +13,7 @@ Phases 1–4 are implemented: React/Vite, FastAPI, PostgreSQL, account migration
 - [x] Added UUID primary keys to authentication support tables through migration `0002_auth_uuid_keys`, preserving existing rows and unique token/state hashes.
 - [x] Retained nullable password hashes for Google-only accounts, as required by the approved Google sign-in flow; every account must have a password hash or Google identity.
 - [x] All nine backend tests passed; API health reported `storage: connected` after the update.
-- [ ] Complete a real Google sign-in and return to the dashboard for final provider verification.
+- [x] Real Google sign-in was subsequently confirmed working by the user on 2026-10-05 after the clock-tolerance fix.
 
 At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 3 work is recorded below.
 
@@ -117,6 +117,9 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 
 ## Verification
 
+- Latest full suite: **33 backend tests passed** (11 authentication, six password recovery, ten project, and six event-ingestion tests). Earlier counts below describe historical checkpoints.
+- Latest frontend production build and password-recovery browser checks passed; migration `0005_password_resets` was applied and API health reported `storage: connected`.
+- Real Google sign-in is user-confirmed. Real password-reset email delivery remains unverified until SMTP credentials are configured.
 - TypeScript check and production build passed (`npm run build`).
 - Frontend server returned HTTP 200 on port 5173.
 - Backend health endpoint returned `status: ok` on port 8000.
@@ -128,7 +131,7 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 - Rechecked frontend production build, API docs HTTP 200, frontend HTTP 200, browser API-connected indicator, sample event search, and absence of browser errors after database setup.
 - Phase 2: nine tests passed after the data-model review. Coverage includes migration setup in disposable schemas, existing-data preservation, UUID keys, duplicate accounts, password hashing, invalid credentials, unauthenticated access, expiry, logout revocation, origin validation, Google linking, OAuth state replay, invalid nonce/unverified email, disabled Google configuration, and throttling. Provider responses are mocked in automated Google flow tests.
 - Phase 2 browser checks passed: register → dashboard → refresh → sign out → incorrect password → successful sign in, plus mobile overflow and console checks. Frontend production build passed.
-- Live Google authorization opens Google's sign-in page displaying “to continue to Tracely.” A full real-account consent/callback has not been performed; the user must complete that last manual check.
+- Live Google authorization opens Google's sign-in page displaying “to continue to Tracely.” The user subsequently confirmed real-account sign-in succeeds after the five-second clock-tolerance fix. Separate manual confirmation of same-email password linking and Google-session refresh/sign-out remains pending.
 - At the Phase 2 data-model checkpoint, all nine tests passed after UUID-key alignment. Migration was `0002_auth_uuid_keys`; PostgreSQL timezone was UTC. Phase 3 subsequently added project tables through `0003_projects`.
 
 ## Run locally (PowerShell)
@@ -181,7 +184,13 @@ Root `.env` supports `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIREC
 - Local HTTP uses `COOKIE_SECURE=false`. HTTPS deployments require `COOKIE_SECURE=true` and matching HTTPS origins/redirects.
 - Access logs are disabled in the startup command to avoid recording OAuth codes in callback query strings.
 - Missing Google credentials disable the Google button without preventing password login.
-- This replaces the original API specification's browser bearer-token proposal with the agreed HTTP-only cookie session. Endpoints: `/api/v1/auth/register`, `/login`, `/logout`, `/me`, `/config`, `/google/start`, `/google/callback`, `/google/link`. Mutation requests require a trusted `Origin`; frontend requests include cookies.
+- This replaces the original API specification's browser bearer-token proposal with the agreed HTTP-only cookie session. Endpoints: `/api/v1/auth/register`, `/login`, `/logout`, `/me`, `/config`, `/google/start`, `/google/callback`, `/google/link`, `/forgot-password`, `/reset-password`. Mutation requests require a trusted `Origin`; frontend requests include cookies.
+
+## Password-reset email configuration
+
+Password recovery is implemented, but live delivery is pending configuration. For local development without a domain, add `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURITY=starttls`, `SMTP_USERNAME`, `SMTP_FROM`, and `SMTP_PASSWORD` to the root `.env`. Use the same Gmail address for username/from and a Google App Password (requires 2-Step Verification), not the Gmail account password or Google OAuth secret. Keep credentials out of source control and chat. Setup instructions are in `README.md`.
+
+Restart the backend after configuring delivery. Then request a link for a password account, check the inbox, open the link on the computer running Tracely, reset the password, and verify that the old password/session fails while the new password succeeds. Until configured, the UI displays a clear email-setup error. Automated tests use mocked delivery and do not establish real inbox delivery.
 
 Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -q`. Tests create and remove uniquely named schemas in the configured database, preserving real accounts.
 
@@ -190,7 +199,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | Phase | Status | Remaining work |
 |---|---|---|
 | 1. Local setup | Complete | None; PostgreSQL starts and API connection works |
-| 2. Database & accounts | Implemented; data-model aligned; nine tests and browser checks passed | User completes real Google sign-in for final provider end-to-end verification |
+| 2. Database & accounts | Implemented; data-model aligned; Google sign-in user-confirmed; password recovery added; 17 auth/recovery tests passed | Configure SMTP and verify real reset email; finish specific Google linking and refresh/sign-out manual checks |
 | 3. Projects & keys | Complete; backend and browser checks passed | None; event ingestion remains Phase 4 |
 | 4. Event ingestion | Complete; schema and validated idempotent endpoint | None; demo instrumentation and live explorer remain later phases |
 | 5. Demo service | Not started | Real instrumentation and fault toggles |
@@ -206,4 +215,4 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-Detection and investigation have not been implemented. Ingestion keys now accept events, while dashboard logs remain sample data until Phase 6. Email delivery, password reset, and email verification for password registrations are outside this phase. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
+Detection and investigation have not been implemented. Ingestion keys now accept events, while dashboard logs remain sample data until Phase 6. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
