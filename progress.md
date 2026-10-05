@@ -4,7 +4,7 @@ Updated: 2026-10-05
 
 ## Current scope
 
-Phases 1–4 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, and hashed ingestion keys with rotation. A real Google account completion remains a manual verification step. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Validated, idempotent event ingestion is implemented; Phase 5 has not started.
+Phases 1–4 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, and hashed ingestion keys with rotation. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. Dashboard events and incidents remain labeled sample data. Validated, idempotent event ingestion is implemented; Phase 5 has not started.
 
 ## Previous checkpoint — Phase 2 data-model review
 
@@ -19,13 +19,38 @@ At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 
 
 ## Remaining Phase 2 verification
 
-- [ ] Sign in with a real Google account and confirm the callback opens the dashboard.
+### Authentication follow-up — 2026-10-05
+
+- [x] Rechecked Phase 2 against `BUILD.md` and `DATA_MODEL.md`; account schema, hashing, authorization, and 30-minute sessions remain aligned.
+- [x] Fixed Google account-linking screen losing its confirmation step on refresh. The URL is cleared after successful authentication or choosing a different account screen.
+- [x] Investigated a real callback failure (`InvalidValue`) and measured the local clock approximately one second behind Google. Added a bounded five-second token clock tolerance; signature, audience, nonce, verified email, and expiration validation remain enabled.
+- [x] Added safe callback diagnostics that omit codes, tokens, secrets, and provider error contents.
+- [x] All 26 backend tests passed before the clock-tolerance change; all 11 authentication tests passed afterward, including signed-token checks for small clock drift, rejection of excessive drift/expired tokens/wrong audience, Google session revocation, and safe error logging.
+- [x] Frontend production build, browser refresh/cancellation checks for linking, and live API/database health passed. Changes are limited to authentication, its tests, and this progress file.
+- [x] User confirmed real Google sign-in works after the fix. The more specific checks below still need confirmation.
+
+- [x] Sign in with a real Google account and confirm the callback opens the dashboard (user confirmed).
 - [ ] For an existing password account with the same Google email, confirm that linking requires the existing password.
 - [ ] Confirm the real Google session survives a page refresh and is revoked by Sign out.
 
 These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Password recovery — 2026-10-05
+
+- [x] Added Forgot password from Sign in and Google linking, email request confirmation, new password/confirmation screens, invalid/expired-link errors, retry, and return to Sign in.
+- [x] Added `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password`. Generic request responses do not disclose registered emails; Google-only accounts retain Google sign-in.
+- [x] Applied migration `0005_password_resets`: UUID IDs, user foreign key/cascade, unique hashed 256-bit tokens, UTC timestamps, 15-minute expiry, and one outstanding link per user.
+- [x] Reset consumes the token, hashes the new password with Argon2id, and revokes all login/link sessions in one committed transaction. Row locking serializes reset attempts and password login. No automatic login after reset.
+- [x] Existing trusted-Origin and attempt limits apply; email requests have a one-minute per-account cooldown. New links invalidate old links. Tokens stay in URL fragments rather than page requests/referrers.
+- [x] Added SMTP delivery with TLS and safe failure logs, environment examples, and Gmail App Password setup instructions for development without a domain. No email credentials were added to source control.
+- [x] All 33 backend tests passed, including recovery token hashing, expiry/replacement/replay rejection, concurrent consumption, session revocation, validation, account privacy, throttling, and SMTP TLS/failure handling. Frontend production build passed.
+- [x] Browser checks passed for navigation, missing-SMTP errors, reset-link refresh, mismatched passwords, invalid tokens, success URL cleanup, and mobile layout. Success email/reset screens used mocked responses; database behavior was verified separately by integration tests.
+- [x] Local migration applied, API restarted, and API/PostgreSQL health verified. Unrelated phase features were preserved.
+- [ ] Configure SMTP credentials in the root `.env`, restart the backend, and verify delivery and reset through a real inbox. The user has no domain; Gmail SMTP is documented as the development option.
+
+Delivery uses an in-process background task, not a durable mail queue. If delivery fails or the process stops, request another link after one minute. Google-only accounts cannot gain a password through this recovery flow.
 
 ### Phase 4 — Event ingestion, 2026-10-05
 

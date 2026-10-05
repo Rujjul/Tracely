@@ -1,6 +1,7 @@
 """Password and Google authentication with opaque, server-expiring cookies."""
 import base64
 import hashlib
+import logging
 import os
 import secrets
 import time
@@ -151,7 +152,7 @@ def register(body: Registration, request: Request, response: Response, connectio
 
 @router.post('/login', dependencies=mutations)
 def login(body: Credentials, request: Request, response: Response, connection=Depends(db)):
-    user = connection.execute('SELECT * FROM users WHERE email = %s', (str(body.email),)).fetchone()
+    user = connection.execute('SELECT * FROM users WHERE email = %s FOR UPDATE', (str(body.email),)).fetchone()
     if not verify_password(user['password_hash'] if user else None, body.password):
         raise HTTPException(401, 'Email or password is incorrect')
     if hasher.check_needs_rehash(user['password_hash']):
@@ -209,7 +210,8 @@ def google_identity(code, attempt):
             'client_secret': os.environ['GOOGLE_CLIENT_SECRET'], 'redirect_uri': callback_url(),
             'grant_type': 'authorization_code', 'code_verifier': attempt['verifier']})
         result.raise_for_status()
-    claims = id_token.verify_oauth2_token(result.json()['id_token'], partial(GoogleRequest(), timeout=10), os.environ['GOOGLE_CLIENT_ID'])
+    # Allow minor provider/local clock drift while still verifying token expiry.
+    claims = id_token.verify_oauth2_token(result.json()['id_token'], partial(GoogleRequest(), timeout=10), os.environ['GOOGLE_CLIENT_ID'], clock_skew_in_seconds=5)
     if not claims.get('email_verified') or not claims.get('sub') or not secrets.compare_digest(claims.get('nonce', ''), attempt['nonce']):
         raise ValueError('Invalid identity claims')
     # Reuse email validation without accepting arbitrary provider profile fields.
@@ -223,15 +225,18 @@ def google_callback(request: Request, state: str = '', code: str = '', error: st
     clear_cookie(failure, STATE_COOKIE)
     browser_state = request.cookies.get(STATE_COOKIE, '')
     if not state or not browser_state or not secrets.compare_digest(state, browser_state):
+        logging.getLogger(__name__).warning('Google sign-in failed: browser state mismatch')
         return failure
     attempt = connection.execute('DELETE FROM oauth_attempts WHERE state_hash=%s AND expires_at>now() RETURNING *', (digest(state),)).fetchone()
     connection.commit()  # Consume the browser-bound state even when Google fails.
     if not attempt or error or not code:
+        logging.getLogger(__name__).warning('Google sign-in failed: expired attempt, denial, or missing code')
         return failure
     try:
         identity = google_identity(code, attempt)
-    except Exception:
+    except Exception as exc:
         # Never expose codes, provider tokens, secrets or provider error details.
+        logging.getLogger(__name__).warning('Google sign-in verification failed (%s)', type(exc).__name__)
         return failure
     response = RedirectResponse(frontend(), status_code=303)
     clear_cookie(response, STATE_COOKIE)

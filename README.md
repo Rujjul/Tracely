@@ -61,3 +61,24 @@ traceai/
 ```
 
 These Markdown files can be placed in `docs/` when the code repository is created. Do not commit `.env`, real API keys, source logs with personal data, or generated event dumps.
+
+## Password recovery (implemented)
+
+Choose **Forgot password?** on Sign in, enter your account email, then use the emailed link to choose and confirm a new password. Links expire after 15 minutes and work once. Resetting revokes all existing login and Google-linking sessions. Google-only accounts continue using Google sign-in. A replacement link invalidates the old link; email requests are limited to one per minute per account, in addition to the authentication attempt limit.
+
+From the backend directory, apply migrations with `.venv/Scripts/python.exe -m alembic upgrade head`, and configure SMTP in the root `.env` before restarting the API. No email credentials or reset links are returned by the API or printed in logs.
+
+For local development without a domain, Gmail SMTP can use these settings:
+
+```dotenv
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURITY=starttls
+SMTP_USERNAME=your-address@gmail.com
+SMTP_FROM=your-address@gmail.com
+SMTP_PASSWORD=your-google-app-password
+```
+
+Use a [Google App Password](https://support.google.com/accounts/answer/185833?hl=en), requiring 2-Step Verification, rather than your ordinary Gmail password or OAuth client secret. Some managed/Advanced Protection accounts do not offer App Passwords. SMTP also supports `SMTP_SECURITY=ssl` with port 465. Other providers can use the same settings; [Resend](https://resend.com/docs/send-with-smtp) requires a verified sending domain.
+
+Keep `FRONTEND_URL=http://127.0.0.1:5173` locally and open the link on the computer running Tracely. For deployment, use your HTTPS frontend URL. Reset tokens are in the link fragment so they are not sent in page requests or referrer headers. Missing email setup gives a clear availability error. Delivery failures are logged without account details; requests receive a generic message to avoid revealing whether an email is registered. Background delivery is not a durable queue: if delivery fails or the process stops, request another link after one minute. Live inbox delivery requires configured credentials and a manual check.

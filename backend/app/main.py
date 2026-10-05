@@ -10,6 +10,7 @@ import psycopg
 from app.auth import router
 from app.projects import router as projects_router
 from app.events import router as events_router
+from app.recovery import router as recovery_router
 
 app = FastAPI(title="Tracely API", version="0.1.0")
 app.add_middleware(
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(recovery_router)
 app.include_router(projects_router)
 app.include_router(events_router)
 

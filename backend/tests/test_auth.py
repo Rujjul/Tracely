@@ -97,11 +97,29 @@ def test_origin_and_validation(client):
 def test_google_new_account_and_repeated_sign_in(client, monkeypatch):
     result = google_callback(client, monkeypatch)
     assert result.status_code == 303 and result.headers['location'] == auth.frontend()
-    assert client.get('/api/v1/auth/me').json()['user']['email'] == 'google@example.com'
+    session = client.get('/api/v1/auth/me').json()
+    assert session['user']['email'] == 'google@example.com'
+    assert client.get('/api/v1/auth/me').json()['expires_at'] == session['expires_at']
+    token = client.cookies.get(auth.SESSION_COOKIE)
     client.post('/api/v1/auth/logout', headers=ORIGIN)
+    client.cookies.set(auth.SESSION_COOKIE, token, domain='127.0.0.1', path='/api/v1')
+    assert client.get('/api/v1/auth/me').status_code == 401
     google_callback(client, monkeypatch)
     with psycopg.connect(os.environ['DATABASE_URL']) as connection:
         assert connection.execute('SELECT count(*) FROM users').fetchone()[0] == 1
+
+
+def test_google_provider_failure_does_not_log_credentials(client, monkeypatch, caplog):
+    start = client.get('/api/v1/auth/google/start')
+    state = parse_qs(urlparse(start.headers['location']).query)['state'][0]
+    def failed_provider(*args):
+        raise ValueError('private-provider-token')
+    monkeypatch.setattr(auth, 'google_identity', failed_provider)
+    response = client.get('/api/v1/auth/google/callback', params={'state': state, 'code': 'private-code'})
+    assert response.headers['location'].endswith('google_error')
+    assert 'verification failed (ValueError)' in caplog.text
+    assert all(value not in caplog.text for value in ('private-provider-token', 'private-code', state))
+    assert client.get('/api/v1/auth/me').status_code == 401
 
 
 def test_google_link_requires_password_and_is_single_use(client, monkeypatch):
@@ -193,3 +211,36 @@ def test_uuid_migration_preserves_existing_authentication(client):
                     else:
                         connection.execute('''INSERT INTO oauth_attempts(state_hash,nonce,verifier,expires_at)
                             SELECT state_hash,nonce,verifier,expires_at FROM oauth_attempts''')
+
+
+def test_google_token_clock_tolerance(monkeypatch):
+    import json
+    import time
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from google.auth import crypt, jwt
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    public = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    monkeypatch.setenv('GOOGLE_CLIENT_ID', 'test-client')
+    monkeypatch.setenv('GOOGLE_CLIENT_SECRET', 'test-secret')
+    class Certificates:
+        status = 200
+        data = json.dumps({'test-key': public}).encode()
+    monkeypatch.setattr(auth, 'GoogleRequest', lambda: lambda *args, **kwargs: Certificates())
+    timestamp = int(time.time())
+    claims = {'iss': 'https://accounts.google.com', 'aud': 'test-client', 'sub': 'subject',
+              'email': 'google@example.com', 'email_verified': True, 'nonce': 'expected',
+              'iat': timestamp + 2, 'exp': timestamp + 3600}
+    class TokenResponse:
+        def raise_for_status(self): pass
+        def json(self): return {'id_token': jwt.encode(crypt.RSASigner.from_string(private, key_id='test-key'), claims).decode()}
+    monkeypatch.setattr(auth.httpx.Client, 'post', lambda *args, **kwargs: TokenResponse())
+    assert auth.google_identity('code', {'verifier': 'v', 'nonce': 'expected'})['sub'] == 'subject'
+    for changes in ({'iat': timestamp + 60}, {'iat': timestamp - 3600, 'exp': timestamp - 60}, {'aud': 'other-client'}):
+        original = claims.copy()
+        claims.update(changes)
+        with pytest.raises(ValueError):
+            auth.google_identity('code', {'verifier': 'v', 'nonce': 'expected'})
+        claims.clear()
+        claims.update(original)
