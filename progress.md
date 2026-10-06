@@ -1,10 +1,10 @@
 # Tracely progress
 
-Updated: 2026-10-05
+Updated: 2026-10-06
 
 ## Current scope
 
-Phases 1–6 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; SMTP credentials and live inbox verification remain pending. Frontend and backend retain their local startup workflow. The Events page now reads stored project data with owner-only access, filters, pagination, and details. Overview charts/recent events and incidents remain labeled sample data. Phase 7 detection has not started.
+Phases 1–7 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; the existing checklist marks SMTP setup and live inbox verification complete. Frontend and backend retain their local startup workflow. The Events page now reads stored project data with owner-only access, filters, pagination, and details. Overview charts/recent events and incidents remain labeled sample data. Phase 7 now runs a separate worker for persistent request-failure incidents. Exception grouping and live incident views remain later phases.
 
 ## Previous checkpoint — Phase 2 data-model review
 
@@ -30,12 +30,38 @@ At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 
 - [x] User confirmed real Google sign-in works after the fix. The more specific checks below still need confirmation.
 
 - [x] Sign in with a real Google account and confirm the callback opens the dashboard (user confirmed).
-- [ ] For an existing password account with the same Google email, confirm that linking requires the existing password.
-- [ ] Confirm the real Google session survives a page refresh and is revoked by Sign out.
+- [x] For an existing password account with the same Google email, confirm that linking requires the existing password.
+- [x] Confirm the real Google session survives a page refresh and is revoked by Sign out.
 
 These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Phase 7 — Request-failure detector, 2026-10-06
+
+#### User-run verification with default settings — 2026-10-06
+
+- [x] User-provided demo output reported **525 delivered events, zero dropped, zero retries, and zero queued**, with the fault reset to healthy at completion.
+- [x] User-provided detector logs confirmed the default **300-second window / 30-second interval** lifecycle: no openings initially; **one incident opened at 17:36:02**, subsequent checks updated the existing incident, and **resolution occurred at 17:42:33** (local terminal times, Asia/Calcutta).
+- [x] No additional openings appeared through the supplied final check at **17:50:04**. The displayed run had `evaluated: 1` and `skipped: 0`, confirming the service was evaluated without duplicate-worker skips.
+- [x] The user’s Events screenshot showed stored `payment-api` failure requests with `ERROR` and HTTP 500. Together with the delivery counters and detector logs, this verifies the demo → ingestion → live Events explorer → incident lifecycle integration for this synthetic run.
+
+This records the user's supplied output, not a new test execution or independent database inspection. The Incidents screen remains sample data; live incident views are still deferred. No application code or running services were changed for this progress update.
+
+#### Implementation and automated verification
+
+- [x] Added migration `0006_detector` with the `incidents` data-model columns, UUID keys, UTC timestamps, project cascades, valid lifecycle/count constraints, a project/status index, and a partial unique index preventing duplicate active project/service/type incidents.
+- [x] Added durable `detector_states` for confirmation streaks, evaluation time/status, rolling counts, first failure, detector version, and policy. Restarts preserve progress; duplicate/early ticks do not advance it. Long gaps and policy/cadence changes reset streaks.
+- [x] Added `python -m app.detector_worker` and `--once`. Default cadence is 30 seconds over a five-minute received-time window; only request events count. Failures are status >= 500 or level ERROR, counted once. Exception-only events are excluded.
+- [x] Opening requires >=20 requests, >=5 failures, and >=10% failures for two evaluations. Active rows update in place. Resolution requires two sufficiently busy windows strictly below 5%; neutral and insufficient-data windows reset streaks but retain active incidents. A later sustained episode creates a new incident.
+- [x] Incident counts represent the latest window; started/last-seen timestamps refer to observed failure evidence, and resolved time records the confirming evaluation. Severity is fixed at warning for this rule. Active episodes retain their opening detection/recovery policy; current configuration governs scheduling and new episodes.
+- [x] Evaluations commit incident and state changes atomically. Advisory locking, persisted cadence, project locks, deletion cascades, and bounded database waits protect duplicate workers, project removal, and rollback. Worker logs omit credentials/event contents and retry database failures next interval.
+- [x] Eight detector tests passed; full backend suite **51 passed**. Coverage includes volume/rate boundaries, exception exclusion, received-time bounds, restart/cadence/configuration handling, concurrent workers, opening/update/resolution/reopening, project/service isolation, deletion cascades, and rollback.
+- [x] Isolated live API/worker smoke check passed: healthy traffic produced no incidents, repeated failures opened one, repeated checks retained one, and healthy traffic resolved it. The test used an eight-second window and one-second interval only in its temporary schema. Temporary processes/schema were removed; existing projects were untouched by synthetic data.
+- [x] Applied the migration to the local database, verified a normal one-shot evaluation, and started the continuous worker with default 300/30-second settings. Frontend production build passed; frontend HTTP 200 and API `storage: connected` verified after starting their existing services.
+- [x] Added `.env.example` detector settings and `backend/DETECTOR.md` run/behavior documentation. Existing sample incident labels now distinguish the implemented worker from the deferred live incident UI. No Phase 8 grouping, Phase 9 API/dashboard, or investigations were implemented.
+
+Run the worker in a separate terminal from `backend`: `.\.venv\Scripts\python.exe -m app.detector_worker`. Restart it after reboot; it is not an installed startup service. The current Incidents screen remains sample data. Durable records are in PostgreSQL; local operator inspection can verify them until owner-facing incident endpoints arrive in Phase 9.
 
 ### Phase 6 — Live event explorer, 2026-10-05
 
@@ -75,7 +101,7 @@ To run the demo yourself, follow `demo-app/README.md`: create a dedicated projec
 - [x] All 33 backend tests passed, including recovery token hashing, expiry/replacement/replay rejection, concurrent consumption, session revocation, validation, account privacy, throttling, and SMTP TLS/failure handling. Frontend production build passed.
 - [x] Browser checks passed for navigation, missing-SMTP errors, reset-link refresh, mismatched passwords, invalid tokens, success URL cleanup, and mobile layout. Success email/reset screens used mocked responses; database behavior was verified separately by integration tests.
 - [x] Local migration applied, API restarted, and API/PostgreSQL health verified. Unrelated phase features were preserved.
-- [ ] Configure SMTP credentials in the root `.env`, restart the backend, and verify delivery and reset through a real inbox. The user has no domain; Gmail SMTP is documented as the development option.
+- [x] Configure SMTP credentials in the root `.env`, restart the backend, and verify delivery and reset through a real inbox. The user has no domain; Gmail SMTP is documented as the development option.
 
 Delivery uses an in-process background task, not a durable mail queue. If delivery fails or the process stops, request another link after one minute. Google-only accounts cannot gain a password through this recovery flow.
 
@@ -144,7 +170,7 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 
 ## Verification
 
-- Latest full suite: **43 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, five demo-service, and five event-reading tests). Earlier counts below describe historical checkpoints.
+- Latest full suite: **51 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, five demo-service, five event-reading, and eight detector tests). Earlier counts below describe historical checkpoints.
 - Phase 5 live smoke persisted all 14 expected events with no drops, verified fault recovery, and removed only its synthetic test records. Existing frontend returned HTTP 200; backend reported `storage: connected`.
 - Latest frontend production build and password-recovery browser checks passed; migration `0005_password_resets` was applied and API health reported `storage: connected`.
 - Real Google sign-in is user-confirmed. Real password-reset email delivery remains unverified until SMTP credentials are configured.
@@ -232,7 +258,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | 4. Event ingestion | Complete; schema and validated idempotent endpoint | None; demo instrumentation and live explorer remain later phases |
 | 5. Demo service | Complete; five demo tests and live ingestion smoke passed | Configure a dedicated local demo key/control token to run it yourself; instructions in `demo-app/README.md` |
 | 6. Log explorer | Complete; owner-protected list/details, filters, pagination, browser checks | None; detection and live overview/incident views remain later phases |
-| 7. Incident detector | Not started | Rolling windows and incident lifecycle |
+| 7. Incident detector | Complete; persistent worker and incident lifecycle tested | Keep the worker running; live incident views remain Phase 9 |
 | 8. Exception grouping | Not started | Fingerprints and real incident evidence |
 | 9. Incident dashboard | Frontend preview only | Real overview and incident endpoints |
 | 10. Evidence investigation | Not started | Bounded retrieval and cited rule summaries |
@@ -243,4 +269,4 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-Detection and investigation have not been implemented. The Events page now shows stored data; overview charts/recent events and incident views remain sample previews until later phases. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
+Request-failure detection is implemented as a separate worker. Exception grouping, live incident views, and investigation have not been implemented. The Events page now shows stored data; overview charts/recent events and incident views remain sample previews until later phases. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.

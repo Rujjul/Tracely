@@ -64,13 +64,21 @@ These Markdown files can be placed in `docs/` when the code repository is create
 
 ## Phase 5 demo service (implemented)
 
-Phase 5's separate demo service, fault controls, telemetry behavior, and local setup are documented in [demo-app/README.md](demo-app/README.md). Run it on port 8001 with a dedicated project ingestion key. Detection remains a later phase.
+Phase 5's separate demo service, fault controls, telemetry behavior, and local setup are documented in [demo-app/README.md](demo-app/README.md). Run it on port 8001 with a dedicated project ingestion key. The Phase 7 detector now runs as a separate worker; see below.
 
 ## Phase 6 live event explorer (implemented)
 
 Sign in, open **Events**, and select an owned project. Stored events appear newest received first. Filter by exact service, level, received time in UTC, or text; use Next/Previous to browse pages and Refresh events to load new arrivals. Inspect an event to see its original timestamp, status, latency, stack trace, and metadata. If the project has no events, send telemetry using its ingestion key or the Phase 5 demo first. Overview charts/recent sample events and incidents remain previews.
 
 The read API uses owner session authentication and project-scoped queries. See [API.md](API.md) for filter and pagination semantics. No new migration or dependency is required for Phase 6; restart the existing API to load the routes. Run the backend suite with `.venv/Scripts/python.exe -m pytest tests -q` from `backend` and build the frontend with `npm.cmd run build` from `frontend`.
+
+## Phase 7 detector (implemented)
+
+From `backend`, apply `.venv/Scripts/python.exe -m alembic upgrade head`, then run `.venv/Scripts/python.exe -m app.detector_worker` in a separate terminal. It reads stored request events every 30 seconds and persists incident opening, updates, and recovery across restarts. `--once` performs one cadence-aware check.
+
+Default rules use a five-minute window, at least 20 requests/five failures, and a 10% failure rate across two evaluations; recovery needs two sufficiently busy windows below 5%. Low traffic keeps active incidents open. Configure the documented `DETECTOR_*` settings in the root `.env` and restart the worker when changing them. Full semantics, lifecycle fields, and testing are in [backend/DETECTOR.md](backend/DETECTOR.md).
+
+The existing Incidents screen remains sample data; real incident browsing and exception grouping belong to subsequent phases. Project deletion also removes its incidents and detector state atomically.
 
 ## Password recovery (implemented)
 
