@@ -276,7 +276,7 @@ Restart the backend after configuring delivery. Then request a link for a passwo
 
 Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -q`. Tests create and remove uniquely named schemas in the configured database, preserving real accounts.
 
-## Fourteen-phase tracker
+## Phase tracker (including Phase 9.5)
 
 | Phase | Status | Remaining work |
 |---|---|---|
@@ -289,6 +289,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | 7. Incident detector | Complete; persistent worker and incident lifecycle tested | Keep the worker running; Phase 9 now displays stored incidents |
 | 8. Exception grouping | Complete; fingerprints, historical backfill, owner-only incident details implemented | None |
 | 9. Incident dashboard | Complete; owner-scoped overview, filters, pagination, clickable evidence implemented | None |
+| 9.5. Guided demo & debugging brief | Planned; not started | Guided synthetic incident walkthrough; preview/copy scrubbed evidence with citations, focused AI debugging instructions, ownership checks, and browser/API verification. Acceptance criteria in `BUILD.md`. |
 | 10. Evidence investigation | Not started | Bounded retrieval and cited rule summaries |
 | 11. Optional local AI | Not started | Model validation and fallback |
 | 12. Evaluation | Not started | Controlled scenarios, integration tests, metrics |

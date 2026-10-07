@@ -4,6 +4,10 @@
 
 Required: accounts, projects, hashed ingestion keys, validated event collection, log explorer, basic incident detector, exception grouping, evidence-based incident view, deterministic investigation, fault demo, controlled evaluation, Docker Compose, and documentation. The local LLM is optional for completion; it should improve explanations without changing detector truth.
 
+## Added milestone: Phase 9.5
+
+Before Phase 10, add a guided synthetic demo and an owner-scoped **Copy debugging brief** action using existing incident evidence. Include preview, redaction, citations, copy fallback, and instructions for focused debugging and fix verification. See `BUILD.md` for acceptance checks. This milestone is planned, not implemented; it does not add automated repairs or AI investigations.
+
 ## After the MVP
 
 | Priority | Addition | Entry condition |

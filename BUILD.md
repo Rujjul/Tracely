@@ -1,4 +1,4 @@
-# Plan A: 14 build sessions
+# Plan A: 14 build sessions plus Phase 9.5
 
 These are sessions, not a promise that every feature fits in one calendar day. At the end of each session, run the acceptance check and commit the working state. Build the first vertical slice before polishing UI or adding a model.
 
@@ -13,11 +13,26 @@ These are sessions, not a promise that every feature fits in one calendar day. A
 | 7 | Rolling-window detector worker and active incident lifecycle | Healthy traffic creates none; repeated failures create one active incident |
 | 8 | Stable exception fingerprints and incident details | Similar exceptions group; unrelated stack traces remain separate |
 | 9 | Project overview and incident dashboard | Counts match database queries; timestamps and status clear |
+| 9.5 | Guided demo and Copy debugging brief | A beginner can follow a labeled demo incident, inspect evidence, and preview/copy a scrubbed, evidence-linked brief; real incident exports enforce ownership |
 | 10 | Bounded evidence retrieval and deterministic investigation | Each observation cites stored event IDs; missing evidence named |
 | 11 | Optional local LLM drafting with schema validation and fallback | Invalid/offline model still yields deterministic result |
 | 12 | Fault scenarios, automated evaluation, targeted integration tests | Known faults replay; metrics computed from run records |
 | 13 | Container builds, persistent volume, migrations at startup, clean setup | Fresh Compose startup reproduces the demo |
 | 14 | Documentation, screenshots, measured results, deployment decision | Another developer can follow README without your help |
+
+## Phase 9.5: guided demo and debugging brief
+
+Build after Phase 9 and before Phase 10. Reuse the existing demo, event details, and incident evidence.
+
+- Provide a guided walkthrough: understand the demo project, observe a simulated failure, inspect grouped evidence, copy a debugging brief, and understand recovery. Include skip/restart controls and an explanation of how to connect the user's own application.
+- Label all synthetic examples explicitly. Never activate faults in a user's application; preserve existing local-only demo controls. Explain worker availability, evaluation timestamps, and manual refresh.
+- Add **Copy debugging brief** to incident details. Preview the text before copying, with success/error feedback and a manual-copy fallback.
+- Include project/service context, incident timestamps and status, request/failure counts with their window, representative errors, cited event IDs, and evidence limits/truncation. Bound the export and scrub credentials and obvious personal data; do not include raw metadata or full source code by default.
+- Add instructions for the user's coding AI to inspect relevant code, distinguish facts from hypotheses, propose a minimal fix, and explain testing and rollback. The user chooses whether to paste the brief into an external tool; Tracely does not send it automatically or edit code.
+- Enforce owner access for real incident evidence. Demo briefs must identify themselves as synthetic; new users must be able to try the walkthrough without supplying production telemetry.
+- Verify walkthrough navigation, mobile/keyboard access, copy fallback, ownership isolation, redaction, missing evidence, and accurate citations. Document manual fix verification without claiming that incident resolution proves the entire application is correct.
+
+Completion: a beginner can complete the walkthrough and copy a useful debugging brief; an owner can do the same with a real incident. This phase formats existing evidence. Automated investigations and local AI remain Phases 10 and 11. Tutorial video production is optional later documentation work.
 
 ## First vertical slice
 
