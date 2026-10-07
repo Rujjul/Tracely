@@ -1,4 +1,5 @@
 """Bounded, project-key-authenticated, idempotent event ingestion."""
+from app.fingerprints import fingerprint
 import json
 import re
 import time
@@ -138,13 +139,14 @@ event_schema['properties']['metadata'] = {'anyOf': [{'type': 'object', 'addition
 def ingest(response: Response, project_id=Depends(active_project), event: Event = Depends(event_body), connection=Depends(db)):
     data = event.model_dump()
     row = connection.execute('''INSERT INTO events
-        (id,project_id,event_id,timestamp,event_type,level,service,message,endpoint,status_code,latency_ms,exception_type,stack_trace,metadata)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (id,project_id,event_id,timestamp,event_type,level,service,message,endpoint,status_code,latency_ms,exception_type,stack_trace,metadata,fingerprint)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (project_id,event_id) DO NOTHING RETURNING event_id''',
         (uuid4(), project_id, event.event_id, event.timestamp.astimezone(timezone.utc), event.event_type,
          event.level, scrub(event.service), scrub(event.message), scrub(event.endpoint), event.status_code,
          event.latency_ms, scrub(event.exception_type), scrub(event.stack_trace),
-         Jsonb(scrub(data['metadata'])) if data['metadata'] is not None else None)).fetchone()
+         Jsonb(scrub(data['metadata'])) if data['metadata'] is not None else None,
+         fingerprint(scrub(event.exception_type), scrub(event.stack_trace)))).fetchone()
     connection.commit()  # Acknowledge persistence, never just receipt.
     response.status_code = 201 if row else 200
     return {'status': 'stored', 'event_id': str(event.event_id)}

@@ -40,7 +40,7 @@ Filters combine with AND. Times normalize to UTC; naive timestamps, reversed tim
 
 The response is `{"events": [...], "next_cursor": "..."}`; the final or empty page has `next_cursor: null`. Results are ordered by `received_at DESC, id DESC`. Pagination uses those two values rather than offsets; the cursor also binds the project, filters, and initial received-time cutoff. Newer arrivals appear after refreshing from the first page. This is not a long-lived database snapshot; concurrent deletion can remove rows.
 
-List items include `id`, `event_id`, `timestamp`, `received_at`, `event_type`, `level`, `service`, `message`, `endpoint`, `status_code`, `latency_ms`, and `exception_type`. The detail route uses the client-generated `event_id` within the selected project and returns `{"event": {...}}`, additionally including stored `stack_trace`, `metadata`, and nullable `fingerprint`. It does not compute fingerprints or perform investigations.
+List items include `id`, `event_id`, `timestamp`, `received_at`, `event_type`, `level`, `service`, `message`, `endpoint`, `status_code`, `latency_ms`, and `exception_type`. The detail route uses the client-generated `event_id` within the selected project and returns `{"event": {...}}`, additionally including stored `stack_trace`, `metadata`, and nullable `fingerprint`. Phase 8 ingestion computes fingerprints; this read route returns the stored value and does not perform investigations.
 
 The React Events page selects an owned project, applies these filters, pages forward/backward, refreshes the newest results, and opens stored details. Time inputs are explicitly UTC and use received time; the details also show the original event timestamp. Summary charts and incidents remain previews until their later phases.
 
@@ -92,3 +92,9 @@ Implemented Phase 4 validation: `event_type` is `request` or `exception`; `level
 ```
 
 Never claim a specific code change caused the incident when no change history was collected.
+
+## Incident details (Phase 8 implemented)
+
+`GET /api/v1/projects/{project_id}/incidents/{incident_id}` requires the owner's existing login cookie. It returns `incident` (stored lifecycle, counters, policy) and `evidence` (`total_events`, `ungrouped_events`, `total_groups`, `groups`, `events`, truncation flags, time bounds, and limitations). Missing sessions return 401; unavailable projects/incidents return 404.
+
+Evidence uses project/service plus the inclusive received-time interval from first to last observed failure, selecting failed request events and exception-only events. Groups use persisted versioned fingerprints, with up to 20 groups and 50 newest event summaries. Incident counters remain latest-window values; evidence counts cover retained episode data. This is correlation, not an investigation or causal conclusion. The incident list and overview endpoints remain Phase 9. See `backend/EXCEPTION_GROUPING.md` for normalization and historical backfill.

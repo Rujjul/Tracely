@@ -104,7 +104,7 @@ function EventList({ project, onExpired }: { project: string; onExpired: () => v
   </section>
 }
 
-function EventDetail({ project, id, onClose, onExpired }: { project: string; id: string; onClose: () => void; onExpired: () => void }) {
+export function EventDetail({ project, id, onClose, onExpired }: { project: string; id: string; onClose: () => void; onExpired: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const expired = useRef(onExpired)
   expired.current = onExpired
@@ -122,7 +122,7 @@ function EventDetail({ project, id, onClose, onExpired }: { project: string; id:
   return <dialog className="event-detail" ref={dialog} aria-labelledby="stored-event-title" onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
     <div><button autoFocus className="close icon-button" aria-label="Close event details" onClick={onClose}><X size={20}/></button><div className="eyebrow">STORED EVIDENCE</div><h2 id="stored-event-title">Event details</h2>
       {error ? <p className="auth-error" role="alert">{error} <button onClick={() => setRetry(n => n + 1)}>Retry details</button></p> : !event ? <p role="status">Loading event details…</p> : <>
-        <p className="event-detail-message">{event.message}</p><dl>{Object.entries({ 'Event ID': event.event_id, 'Request time (UTC)': utc(event.timestamp), 'Received (UTC)': utc(event.received_at), Type: event.event_type, Level: event.level, Service: event.service, Endpoint: event.endpoint, Status: event.status_code, 'Latency (ms)': event.latency_ms, Exception: event.exception_type }).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value ?? '—'}</dd></div>)}</dl>
+        <p className="event-detail-message">{event.message}</p><dl>{Object.entries({ 'Event ID': event.event_id, 'Request time (UTC)': utc(event.timestamp), 'Received (UTC)': utc(event.received_at), Type: event.event_type, Level: event.level, Service: event.service, Endpoint: event.endpoint, Status: event.status_code, 'Latency (ms)': event.latency_ms, Exception: event.exception_type, Fingerprint: event.fingerprint || 'Not grouped' }).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value ?? '—'}</dd></div>)}</dl>
         <h3>Stack trace</h3><pre>{event.stack_trace || 'No stack trace recorded.'}</pre><h3>Metadata</h3><pre>{event.metadata ? JSON.stringify(event.metadata, null, 2) : 'No metadata recorded.'}</pre>
       </>}
     </div>

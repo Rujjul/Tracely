@@ -1,6 +1,6 @@
 # Phase 7 request-failure detector
 
-The worker reads persisted Phase 4/5 request events and writes incidents. It is separate from FastAPI, so API restarts and request handling do not run detector loops. Phase 8 exception grouping, Phase 9 live incident views, and investigations remain separate work. The current Incidents screen is still explicitly sample data.
+The worker reads persisted Phase 4/5 request events and writes incidents. It is separate from FastAPI, so API restarts and request handling do not run detector loops. Phase 8 exception grouping and owner-only detail lookup are now implemented separately; see `EXCEPTION_GROUPING.md`. The browsable Phase 9 incident list and investigations remain future work. The incident list is still explicitly sample data.
 
 ## Run (PowerShell)
 
