@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Activity, ArrowRight, Check, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import App from './App'
+import Landing from './Landing'
 import './auth.css'
 
 const api = (import.meta.env.VITE_API_BASE_URL || `${location.protocol}//${location.hostname}:8000`).replace(/\/$/, '')
 type Session = { user: { id: string; email: string }; expires_at: string }
-type Mode = 'login' | 'register' | 'link' | 'forgot' | 'reset'
+type Mode = 'landing' | 'login' | 'register' | 'link' | 'forgot' | 'reset'
 async function request(path: string, body?: unknown) {
   const response = await fetch(`${api}/api/v1/auth/${path}`, {
     method: body === undefined ? 'GET' : 'POST', credentials: 'include',
@@ -20,7 +21,7 @@ async function request(path: string, body?: unknown) {
 export default function Auth() {
   const incoming = new URLSearchParams(location.search).get('auth')
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(location.hash.slice(1)).get('reset_token') || '')
-  const [mode, setMode] = useState<Mode>(location.hash.startsWith('#reset_token=') ? 'reset' : incoming === 'link' ? 'link' : 'login')
+  const [mode, setMode] = useState<Mode>(location.hash.startsWith('#reset_token=') ? 'reset' : incoming === 'link' ? 'link' : incoming === 'register' ? 'register' : incoming === 'login' || incoming === 'google_error' ? 'login' : 'landing')
   const [session, setSession] = useState<Session | null>(null)
   const [checking, setChecking] = useState(true)
   const [google, setGoogle] = useState(false)
@@ -31,7 +32,7 @@ export default function Auth() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(incoming === 'google_error' ? 'Google sign-in was cancelled or could not be verified. Please try again.' : '')
   useEffect(() => {
-    if (incoming && incoming !== 'link') history.replaceState(null, '', location.pathname)
+    if (incoming === 'google_error') history.replaceState(null, '', location.pathname + '?auth=login')
     let active = true
     request('config').then(data => { if (active) setGoogle(data.google_enabled) }).catch(() => {})
     request('me').then(data => { if (active && incoming !== 'link' && mode !== 'reset') setSession(data) }).catch(() => {}).finally(() => { if (active) setChecking(false) })
@@ -46,7 +47,7 @@ export default function Auth() {
     window.addEventListener('focus', check)
     return () => { clearTimeout(timer); window.removeEventListener('focus', check) }
   }, [session])
-  function changeMode(next: Mode) { history.replaceState(null, '', location.pathname); setResetToken(''); setMode(next); setError(''); setPassword(''); setConfirmation('') }
+  function changeMode(next: Mode) { history.replaceState(null, '', location.pathname + (next === 'login' || next === 'register' ? `?auth=${next}` : '')); setResetToken(''); setMode(next); setError(''); setPassword(''); setConfirmation('') }
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (mode === 'register' && password !== confirmation) { setError('Passwords do not match.'); return }
@@ -60,13 +61,14 @@ export default function Auth() {
   }
   async function signOut() {
     setBusy(true)
-    try { await request('logout', {}); setSession(null); setError(''); setMode('login') }
+    try { await request('logout', {}); setSession(null); changeMode('login') }
     catch { setError('Could not sign out. Check your connection and try again.') }
     finally { setBusy(false) }
   }
   if (checking) return <div className="auth-loading" role="status">Opening Tracely…</div>
   if (mode === 'forgot' || mode === 'reset') return <PasswordRecovery key={mode} token={resetToken} resetting={mode === 'reset'} onBack={() => changeMode('login')} onNewLink={() => changeMode('forgot')}/>
   if (session) return <><div className="account-bar"><span>Signed in as <strong>{session.user.email}</strong></span><button disabled={busy} onClick={signOut}>Sign out</button>{error && <span role="alert">{error}</span>}</div><App onExpired={() => { setSession(null); setMode('login'); setError('Your session ended. Please sign in again.') }} /></>
+  if (mode === 'landing') return <Landing/>
   return <div className="auth-shell">
     <section className="auth-story"><a className="auth-brand" href="/" aria-label="Tracely home"><span><Activity size={25}/></span>tracely.</a><div className="auth-story-body"><div className="auth-kicker">FOLLOW THE SIGNAL.</div><h1>Every incident<br/>has a story.<br/><em>Find yours.</em></h1><p>Bring the evidence together. Understand what happened. Get back to building.</p><div className="auth-signal" aria-hidden="true"><div><span/><span/><span/></div><svg viewBox="0 0 420 110"><path d="M0 65H80L97 50 110 78 128 25 145 90 161 48 177 65H245L264 50 281 78 300 35 320 65H420"/></svg><span className="signal-caption">FROM NOISE TO UNDERSTANDING</span></div><ul><li><Check size={15}/> Evidence, not guesswork</li><li><Check size={15}/> Local-first by design</li><li><Check size={15}/> Your systems, in focus</li></ul></div><span className="auth-copyright">Tracely · A clearer path to why.</span></section>
     <section className="auth-form-area"><div className="auth-topline"><ShieldCheck size={15}/> Your investigation starts here</div><div className="auth-card"><div className="auth-tabs" aria-label="Account access"><button className={mode!=='register'?'selected':''} onClick={()=>changeMode('login')}>Sign in</button><button className={mode==='register'?'selected':''} onClick={()=>changeMode('register')}>Sign up</button></div><h2>{mode==='register'?'Create your account':mode==='link'?'Confirm it’s you':'Welcome back'}</h2><p className="auth-subtitle">{mode==='register'?'A little less noise. A lot more clarity.':mode==='link'?'This Google email matches an existing account. Enter its password to securely link Google.':'Sign in to your Tracely workspace.'}</p>

@@ -1,6 +1,6 @@
 # Tracely progress
 
-Updated: 2026-10-06
+Updated: 2026-10-07
 
 ## Current scope
 
@@ -36,6 +36,15 @@ At that checkpoint, Phase 2 matched the relevant data-model requirements. Phase 
 These are manual provider checks; their corresponding local authentication paths already passed automated tests. These checks remain separate from Phase 3 project management.
 
 ## Completed
+
+### Public landing page — 2026-10-07
+
+- [x] Built the public landing page from `LANDING_PAGE_DESIGN.md`: warm cream/navy/coral/mint palette, existing typography/icons, hero illustration, labeled interactive sample preview, how it works, available features, upcoming capabilities, and repeated account actions.
+- [x] Unauthenticated visitors see the landing page at `/`. Sign up opens `/?auth=register`; Sign in opens `/?auth=login`. Refresh preserves the selected auth screen. Existing valid sessions open the authenticated dashboard directly.
+- [x] Preserved Google linking/error callbacks, reset-token links, password recovery, session expiry, and existing dashboard behavior. Logout returns to an explicit sign-in URL. No backend, database, or dashboard code was changed.
+- [x] Sample preview supports local search, an error-level toggle, and expandable details without backend access. Synthetic content and illustrated workflow are labeled; live incident views and later investigation capabilities remain explicitly upcoming. No testimonials or performance claims were added.
+- [x] Added finite graphical animations, reduced-motion support, a keyboard skip link, visible focus styles, keyboard-operable details with Escape/focus return, and responsive layouts. Final browser checks confirmed no page overflow or overlapping illustration cards at 320, 390, 800, and 1440px widths.
+- [x] TypeScript/production build passed. Browser checks covered preview interactions, auth entry/refresh/back navigation, signup/login/logout, direct authenticated dashboard access, Google callback screens, reset links, session expiry, reduced motion, and keyboard navigation. Authentication responses were mocked for these frontend regression checks; no real account was created and no new live Google/email verification was performed.
 
 ### Phase 7 — Request-failure detector, 2026-10-06
 
