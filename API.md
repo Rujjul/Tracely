@@ -42,7 +42,7 @@ The response is `{"events": [...], "next_cursor": "..."}`; the final or empty pa
 
 List items include `id`, `event_id`, `timestamp`, `received_at`, `event_type`, `level`, `service`, `message`, `endpoint`, `status_code`, `latency_ms`, and `exception_type`. The detail route uses the client-generated `event_id` within the selected project and returns `{"event": {...}}`, additionally including stored `stack_trace`, `metadata`, and nullable `fingerprint`. Phase 8 ingestion computes fingerprints; this read route returns the stored value and does not perform investigations.
 
-The React Events page selects an owned project, applies these filters, pages forward/backward, refreshes the newest results, and opens stored details. Time inputs are explicitly UTC and use received time; the details also show the original event timestamp. Summary charts and incidents remain previews until their later phases.
+The React Events page selects an owned project, applies these filters, pages forward/backward, refreshes the newest results, and opens stored details. Time inputs are explicitly UTC and use received time; the details also show the original event timestamp. Phase 9 also provides stored overview metrics and incident browsing.
 
 ## Ingestion endpoint
 
@@ -97,4 +97,22 @@ Never claim a specific code change caused the incident when no change history wa
 
 `GET /api/v1/projects/{project_id}/incidents/{incident_id}` requires the owner's existing login cookie. It returns `incident` (stored lifecycle, counters, policy) and `evidence` (`total_events`, `ungrouped_events`, `total_groups`, `groups`, `events`, truncation flags, time bounds, and limitations). Missing sessions return 401; unavailable projects/incidents return 404.
 
-Evidence uses project/service plus the inclusive received-time interval from first to last observed failure, selecting failed request events and exception-only events. Groups use persisted versioned fingerprints, with up to 20 groups and 50 newest event summaries. Incident counters remain latest-window values; evidence counts cover retained episode data. This is correlation, not an investigation or causal conclusion. The incident list and overview endpoints remain Phase 9. See `backend/EXCEPTION_GROUPING.md` for normalization and historical backfill.
+Evidence uses project/service plus the inclusive received-time interval from first to last observed failure, selecting failed request events and exception-only events. Groups use persisted versioned fingerprints, with up to 20 groups and 50 newest event summaries. Incident counters remain latest-window values; evidence counts cover retained episode data. This is correlation, not an investigation or causal conclusion. The incident list and overview endpoints are implemented in Phase 9. See `backend/EXCEPTION_GROUPING.md` for normalization and historical backfill.
+
+## Project dashboard (Phase 9 implemented)
+
+Both routes require the existing owner session cookie; missing sessions return 401, inaccessible projects 404. Ingestion keys cannot read dashboard data. Responses are private/no-store and statements have a five-second timeout.
+
+### GET `/projects/{project_id}/overview`
+
+Optional `start_time` and `end_time` must be timezone-aware. Defaults: the last hour ending now. Maximum window: seven days; reversed/equal bounds return 422. Optional `service` is an exact name (1–255 characters). Event metrics use `received_at >= start_time AND received_at < end_time`.
+
+Returns `requests`, `failures`, `total_events`, `error_rate` (fraction or null without requests), `median_latency_ms` (null without recorded request latency), `active_incidents`, `total_services`, `services`, `services_truncated`, 24 zero-filled `buckets`, UTC bounds, and `generated_at`. Failures use the detector rule: request events with status >=500 OR level ERROR, counted once. Exception-only events count as events but never requests/failures/latency samples. The active incident count is current stored status across all time for the selected project/service, independent of the event window.
+
+Services list up to 100 names ranked by request count, with event/request/failure totals, active-incident flag, and last recorded detector state/timestamp. These states are not a guarantee that the worker is running. The single SQL statement computes all overview aggregates from one database snapshot. Recent events in the UI use the existing event API with the same bounds (a separate request, not a shared database snapshot).
+
+### GET `/projects/{project_id}/incidents`
+
+Optional filters: `status=active|resolved`, exact `service`, and timezone-aware `start_time`/`end_time` applied to **started_at** with inclusive start/exclusive end. Default returns all statuses and times. Pagination: `limit` defaults to 50, maximum 100; response `incidents` plus `next_cursor`. Each item includes ID, service, type, status, severity, first/last failure timestamps, resolution timestamp and latest-window failure/request counts.
+
+Results sort by `started_at DESC,id DESC`. Cursors bind project, filters and the first-page start-time cutoff. Refresh from page one for updated results. Status changes/deletions and newly detected episodes with older first-failure times can change page membership; pagination is not a frozen snapshot. The UI uses pages of 25 and manual refresh. Click Inspect for the existing Phase 8 detail endpoint.

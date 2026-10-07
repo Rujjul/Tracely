@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, ArrowDown, ArrowRight, Check, CheckCheck, ChevronRight, Code2, Fingerprint, KeyRound, Layers, Radio, Search, ShieldCheck, Sparkles, Terminal, X } from 'lucide-react'
+import { Activity, ArrowDown, ArrowRight, Check, CheckCheck, ChevronRight, Code2, KeyRound, Layers, Radio, Search, ShieldCheck, Sparkles, Terminal, X } from 'lucide-react'
 import './landing.css'
 
 const samples = [
@@ -46,9 +46,9 @@ export default function Landing() {
         { icon: ShieldCheck, title: 'Your own workspace', copy: 'Email or Google sign-in, plus password recovery with configured email delivery.' },
         { icon: KeyRound, title: 'Projects & keys', copy: 'Keep application data separate and manage ingestion access with keys you can rotate.' },
         { icon: Search, title: 'Live event explorer', copy: 'Search, filter, and inspect stored events, from status codes to stack traces.' },
-        { icon: Radio, title: 'Background detection', copy: 'Persistent incident opening, updates, and recovery for sustained request failures.' },
-      ].map(item => <article key={item.title}><item.icon size={25}/><h3>{item.title}</h3><p>{item.copy}</p><span><Check size={14}/> Available today</span></article>)}</div><p className="lp-availability"><Radio size={17}/> Detection runs today; live incident screens are still being built.</p></section>
-      <section className="lp-wrap"><div className="lp-upcoming"><div><span className="lp-eyebrow">UPCOMING — NOT AVAILABLE YET</span><h2>Next on the<br/>workbench.</h2><p>More ways to connect the evidence.<br/>One thoughtful step at a time.</p></div><ul><li><Fingerprint/>Exception grouping</li><li><Layers/>Live incident views</li><li><Search/>Evidence-based investigations</li><li><Sparkles/>Optional local AI assistance</li></ul></div></section>
+        { icon: Radio, title: 'Background detection', copy: 'Detect sustained request failures, browse incidents, and inspect grouped exception evidence.' },
+      ].map(item => <article key={item.title}><item.icon size={25}/><h3>{item.title}</h3><p>{item.copy}</p><span><Check size={14}/> Available today</span></article>)}</div><p className="lp-availability"><Radio size={17}/> Project overviews, incident details, and exception grouping use stored evidence.</p></section>
+      <section className="lp-wrap"><div className="lp-upcoming"><div><span className="lp-eyebrow">UPCOMING — NOT AVAILABLE YET</span><h2>Next on the<br/>workbench.</h2><p>More ways to connect the evidence.<br/>One thoughtful step at a time.</p></div><ul><li><Search/>Evidence-based investigations</li><li><Sparkles/>Optional local AI assistance</li></ul></div></section>
       <section className="lp-wrap lp-final"><div className="lp-final-doodle" aria-hidden="true"><Activity size={40}/></div><span className="lp-eyebrow">YOUR FIRST SIGNAL IS A GOOD START.</span><h2>Something broke.<br/><span>Follow the signal.</span></h2><p>Start with one project and follow your first signal.</p><a className="lp-button" href="/?auth=register">Create an account <ArrowRight size={18}/></a><a className="lp-final-login" href="/?auth=login">Already here? Sign in</a></section>
     </main>
     <footer className="lp-footer lp-wrap"><a className="lp-logo" href="/" aria-label="Tracely home"><Activity/>tracely<span>.</span></a><span>Make sense of the signals.</span><a href="#landing-main">Back to top ↑</a></footer>

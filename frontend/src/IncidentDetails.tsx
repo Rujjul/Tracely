@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EventDetail } from './Events'
 import './incidents.css'
 
@@ -9,60 +9,30 @@ type Details = {
   evidence: { total_events: number; ungrouped_events: number; total_groups: number; events_truncated: boolean; groups_truncated: boolean; limitations: string[]; groups: { fingerprint: string; exception_type: string; event_count: number; first_seen_at: string; last_seen_at: string }[]; events: { event_id: string; message: string; received_at: string; fingerprint: string | null }[] }
 }
 
-export default function IncidentDetails({ onExpired }: { onExpired: () => void }) {
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
-  const [project, setProject] = useState('')
-  const [id, setId] = useState('')
+export default function IncidentDetails({ project, id, onExpired }: { project: string; id: string; onExpired: () => void }) {
   const [data, setData] = useState<Details | null>(null)
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const [retry, setRetry] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
-  const pending = useRef<AbortController | null>(null)
   const expired = useRef(onExpired)
   expired.current = onExpired
-  async function read(path: string, signal: AbortSignal) {
-    const response = await fetch(`${api}/api/v1/projects${path}`, { credentials: 'include', cache: 'no-store', signal })
-    if (response.status === 401) { expired.current(); throw new Error('Your session ended. Please sign in again.') }
-    const body = await response.json()
-    if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Check the incident ID and try again.')
-    return body
-  }
   useEffect(() => {
     const controller = new AbortController()
-    setError(''); setLoading(true)
-    read('', controller.signal).then(body => {
-      if (!controller.signal.aborted) { setProjects(body.projects); setProject(body.projects[0]?.id || '') }
-    }).catch(e => { if (!controller.signal.aborted) setError(e.message || 'Unable to load projects.') })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => { controller.abort(); pending.current?.abort() }
-  }, [retry])
-  function clear() { pending.current?.abort(); setData(null); setError(''); setSelected(null); setLoading(false) }
-  async function inspect(event: FormEvent) {
-    event.preventDefault()
-    clear()
-    const controller = new AbortController()
-    pending.current = controller
-    setLoading(true)
-    try {
-      const result = await read(`/${project}/incidents/${encodeURIComponent(id.trim())}`, controller.signal)
-      if (!controller.signal.aborted) setData(result)
-    } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Unable to load incident.') }
-    finally { if (!controller.signal.aborted) setLoading(false) }
-  }
+    setData(null); setError(''); setSelected(null)
+    fetch(`${api}/api/v1/projects/${project}/incidents/${id}`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
+      .then(async response => {
+        if (response.status === 401) { expired.current(); throw new Error('Your session ended. Please sign in again.') }
+        const body = await response.json()
+        if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Unable to load incident.')
+        if (!controller.signal.aborted) setData(body)
+      }).catch(e => { if (!controller.signal.aborted) setError(e.message || 'Unable to load incident.') })
+    return () => controller.abort()
+  }, [project, id, retry])
   return <section className="panel incident-details">
     <h2>Stored incident details</h2>
-    <p>Choose a project and enter a stored incident UUID. The browsable incident dashboard arrives in Phase 9.</p>
-    <form className="event-filters" onSubmit={inspect}>
-      <label>Project<select required value={project} onChange={e => { clear(); setProject(e.target.value) }}>
-        {!projects.length && <option value="">No projects available</option>}{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select></label>
-      <label>Incident ID<input required maxLength={36} placeholder="Incident UUID" value={id} onChange={e => { clear(); setId(e.target.value) }}/></label>
-      <button className="primary" disabled={loading || !project} type="submit">Inspect incident</button>
-    </form>
-    {!projects.length && !loading && <button className="outline" onClick={() => setRetry(n => n + 1)}>Refresh projects</button>}
-    {loading && <p role="status">Loading…</p>}
-    {error && <p className="auth-error" role="alert">{error}</p>}
+    <button className="text-button" onClick={() => setRetry(n => n + 1)}>Refresh details</button>
+    {!data && !error && <p role="status">Loading incident...</p>}
+    {error && <p className="auth-error" role="alert">{error} <button onClick={() => setRetry(n => n + 1)}>Retry</button></p>}
     {data && <>
       <h3>{data.incident.service} · {data.incident.status}</h3>
       <dl className="incident-facts">{Object.entries({ 'Incident ID': data.incident.id, Type: data.incident.incident_type, Severity: data.incident.severity, 'First failure': utc(data.incident.started_at), 'Last failure': utc(data.incident.last_seen_at), Resolved: utc(data.incident.resolved_at), 'Latest window requests': data.incident.request_count, 'Latest window failures': data.incident.failure_count, Detector: data.incident.detector_version }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

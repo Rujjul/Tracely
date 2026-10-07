@@ -4,7 +4,17 @@ Updated: 2026-10-07
 
 ## Current scope
 
-Phases 1–8 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; the existing checklist marks SMTP setup and live inbox verification complete. Frontend and backend retain their local startup workflow. The Events page now reads stored project data with owner-only access, filters, pagination, and details. Overview charts/recent events and the incident list remain labeled sample data. Phase 7 now runs a separate worker for persistent request-failure incidents. Phase 8 adds stable exception fingerprints and owner-only stored incident details. The browsable incident dashboard remains Phase 9.
+Phases 1–9 are implemented: React/Vite, FastAPI, PostgreSQL, account migrations, email/password registration and login, Google sign-in, 30-minute sessions, owner-scoped projects, hashed ingestion keys with rotation, validated idempotent ingestion, and an instrumented synthetic demo service with protected fault controls. The user confirmed real Google sign-in works after the clock-tolerance fix. Password recovery is implemented; the existing checklist marks SMTP setup and live inbox verification complete. Frontend and backend retain their local startup workflow. The Events page now reads stored project data with owner-only access, filters, pagination, and details. Overview metrics, recent events, and the incident list now read owned-project data. Phase 7 now runs a separate worker for persistent request-failure incidents. Phase 8 adds stable exception fingerprints and owner-only stored incident details. Phase 9 adds the browsable incident dashboard and project overview.
+
+## Phase 9 — project overview and incident dashboard
+
+- [x] Replaced authenticated overview and incident sample data with owner-scoped APIs and stored PostgreSQL results. Removed the hard-coded incident badge and sample modals.
+- [x] Overview includes request totals, failure rate, median recorded request latency, current active incidents, 24 time buckets, service counts/last detector state, and recent event links. Supports 1-hour/24-hour/7-day windows, exact service filtering, and manual refresh.
+- [x] Incident list supports active/resolved status, exact service, inclusive/exclusive UTC start-time filters, and keyset pagination. Click Inspect to open Phase 8 evidence without copying UUIDs; back navigation preserves the list.
+- [x] Added migration `0008_dashboard` for incident pagination; applied locally and verified Alembic is at head. No detector/auth/ingestion logic changed.
+- [x] Full backend suite: **61 passed** (five new Phase 9 tests). Covered metrics/denominators/buckets, latency, empty states, ownership, time bounds, status/service filters, same-time UUID pagination, cursor binding, and service response limits.
+- [x] Browser checks with synthetic responses passed for overview/event dialog, incident navigation, paging, filters, project switching, empty/error/retry states, session expiry, and desktop/mobile overflow. Visually inspected desktop/mobile screenshots. Frontend build passed.
+- [x] Updated API/usage documentation and public feature labels. Investigations remain Phase 10; no AI or later-phase work added.
 
 ## Phase 8 — exception grouping and incident details
 
@@ -79,7 +89,7 @@ This records the user's supplied output, not a new test execution or independent
 - [x] Applied the migration to the local database, verified a normal one-shot evaluation, and started the continuous worker with default 300/30-second settings. Frontend production build passed; frontend HTTP 200 and API `storage: connected` verified after starting their existing services.
 - [x] Added `.env.example` detector settings and `backend/DETECTOR.md` run/behavior documentation. Existing sample incident labels now distinguish the implemented worker from the deferred live incident UI. No Phase 8 grouping, Phase 9 API/dashboard, or investigations were implemented.
 
-Run the worker in a separate terminal from `backend`: `.\.venv\Scripts\python.exe -m app.detector_worker`. Restart it after reboot; it is not an installed startup service. The current Incidents screen remains sample data. Durable records are in PostgreSQL; local operator inspection can verify them until owner-facing incident endpoints arrive in Phase 9.
+Run the worker in a separate terminal from `backend`: `.\.venv\Scripts\python.exe -m app.detector_worker`. Restart it after reboot; it is not an installed startup service. The Incidents screen now reads these durable records through the Phase 9 owner-only list.
 
 ### Phase 6 — Live event explorer, 2026-10-05
 
@@ -191,7 +201,7 @@ Use the API documentation at `http://127.0.0.1:8000/docs`: authorize with a proj
 - Latest full suite: **51 tests passed** (11 authentication, six password recovery, ten project, six event-ingestion, five demo-service, five event-reading, and eight detector tests). Earlier counts below describe historical checkpoints.
 - Phase 5 live smoke persisted all 14 expected events with no drops, verified fault recovery, and removed only its synthetic test records. Existing frontend returned HTTP 200; backend reported `storage: connected`.
 - Latest frontend production build and password-recovery browser checks passed; migration `0005_password_resets` was applied and API health reported `storage: connected`.
-- Real Google sign-in is user-confirmed. Real password-reset email delivery remains unverified until SMTP credentials are configured.
+- Real Google sign-in is user-confirmed. SMTP credentials are configured, and the existing password-recovery checklist records real inbox/reset verification as complete. Delivery was not independently re-tested during this documentation review.
 - TypeScript check and production build passed (`npm run build`).
 - Frontend server returned HTTP 200 on port 5173.
 - Backend health endpoint returned `status: ok` on port 8000.
@@ -260,7 +270,7 @@ Root `.env` supports `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIREC
 
 ## Password-reset email configuration
 
-Password recovery is implemented, but live delivery is pending configuration. For local development without a domain, add `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURITY=starttls`, `SMTP_USERNAME`, `SMTP_FROM`, and `SMTP_PASSWORD` to the root `.env`. Use the same Gmail address for username/from and a Google App Password (requires 2-Step Verification), not the Gmail account password or Google OAuth secret. Keep credentials out of source control and chat. Setup instructions are in `README.md`.
+Password recovery is implemented and local SMTP settings are configured. Real inbox/reset verification is marked complete in the existing checklist. For a fresh local setup without a domain, add `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURITY=starttls`, `SMTP_USERNAME`, `SMTP_FROM`, and `SMTP_PASSWORD` to the root `.env`. Use the same Gmail address for username/from and a Google App Password (requires 2-Step Verification), not the Gmail account password or Google OAuth secret. Keep credentials out of source control and chat. Setup instructions are in `README.md`.
 
 Restart the backend after configuring delivery. Then request a link for a password account, check the inbox, open the link on the computer running Tracely, reset the password, and verify that the old password/session fails while the new password succeeds. Until configured, the UI displays a clear email-setup error. Automated tests use mocked delivery and do not establish real inbox delivery.
 
@@ -271,14 +281,14 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | Phase | Status | Remaining work |
 |---|---|---|
 | 1. Local setup | Complete | None; PostgreSQL starts and API connection works |
-| 2. Database & accounts | Implemented; data-model aligned; Google sign-in user-confirmed; password recovery added; 17 auth/recovery tests passed | Configure SMTP and verify real reset email; finish specific Google linking and refresh/sign-out manual checks |
+| 2. Database & accounts | Implemented; data-model aligned; Google sign-in user-confirmed; password recovery added; 17 auth/recovery tests passed | Finish any outstanding specific Google linking and refresh/sign-out manual checks; SMTP/inbox setup is recorded complete |
 | 3. Projects & keys | Complete; backend and browser checks passed | None; event ingestion remains Phase 4 |
 | 4. Event ingestion | Complete; schema and validated idempotent endpoint | None; demo instrumentation and live explorer remain later phases |
 | 5. Demo service | Complete; five demo tests and live ingestion smoke passed | Configure a dedicated local demo key/control token to run it yourself; instructions in `demo-app/README.md` |
 | 6. Log explorer | Complete; owner-protected list/details, filters, pagination, browser checks | None; detection and live overview/incident views remain later phases |
-| 7. Incident detector | Complete; persistent worker and incident lifecycle tested | Keep the worker running; live incident views remain Phase 9 |
-| 8. Exception grouping | Complete | Stable fingerprints, historical backfill, owner-only incident details |
-| 9. Incident dashboard | Frontend preview only | Real overview and incident endpoints |
+| 7. Incident detector | Complete; persistent worker and incident lifecycle tested | Keep the worker running; Phase 9 now displays stored incidents |
+| 8. Exception grouping | Complete; fingerprints, historical backfill, owner-only incident details implemented | None |
+| 9. Incident dashboard | Complete; owner-scoped overview, filters, pagination, clickable evidence implemented | None |
 | 10. Evidence investigation | Not started | Bounded retrieval and cited rule summaries |
 | 11. Optional local AI | Not started | Model validation and fallback |
 | 12. Evaluation | Not started | Controlled scenarios, integration tests, metrics |
@@ -287,4 +297,13 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-Request-failure detection is implemented as a separate worker. Exception grouping and stored incident detail lookup are implemented. Live incident dashboards and investigation remain future work. The Events page now shows stored data; overview charts/recent events and the incident list remain sample previews until Phase 9. Password reset and SMTP delivery support are implemented; SMTP credentials and real inbox verification remain pending. Email verification for password registrations is not implemented. Reset email delivery uses an in-process background task without a durable queue. Attempt throttling is in memory for the current single-process local setup and resets on restart; shared enforcement is needed before scaling. Expired session/OAuth rows are pruned during new session/flow creation. Sample chart values are illustrative and are not calculated from the six sample event rows. Fonts use Google Fonts with local fallbacks. Backend requirements have version ranges; a full dependency lock is future work. Original specifications describe the eventual product; this tracker records actual behavior.
+- Evidence-based investigation remains future work (Phase 10).
+- Dashboard refresh is manual; automatic polling is not implemented.
+- The detector requires a running worker. When it stops, incident status and detector state remain unchanged; check evaluation timestamps for freshness.
+- Email verification for password registrations is not implemented.
+- Reset email delivery uses an in-process background task without a durable queue; pending delivery can be lost if the process stops.
+- Attempt throttling is in memory and resets on restart. Shared, persistent enforcement is needed before scaling.
+- Expired session/OAuth records are pruned during new session/flow creation; there is no scheduled cleanup.
+- Backend dependencies use version ranges; a full dependency lockfile remains future work.
+
+The public landing-page demo is intentionally synthetic; authenticated charts use stored request events. Fonts have local fallbacks. These are current design choices rather than unfinished features.

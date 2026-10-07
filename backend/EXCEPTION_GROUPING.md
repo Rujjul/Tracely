@@ -21,7 +21,7 @@ Restart FastAPI after updating the code. The detector worker has no Phase 8 logi
 
 ## Inspect an incident
 
-The Incidents page now has a **Stored incident details** lookup: select an owned project and enter the incident UUID. Use an ID from your existing detector/database verification. The owner-only API is `GET /api/v1/projects/{project_id}/incidents/{incident_id}`. The browsable incident list and overview remain Phase 9; their existing illustrations are still labeled sample data.
+Phase 9 now provides a browsable **Incidents** list: select an owned project, filter if needed, and click Inspect. Manual UUID entry is no longer needed. The detail API remains `GET /api/v1/projects/{project_id}/incidents/{incident_id}`.
 
 The detail response includes lifecycle timestamps, status, severity, detector version, recorded policy, and the latest detector counters. Correlated evidence is reconstructed using the same project/service and the inclusive interval from `started_at` to `last_seen_at`, measured by server `received_at`. Only failed requests or exception-only events are evidence candidates. This is an episode interval, not the latest rolling window; its counts may differ from incident counters.
 

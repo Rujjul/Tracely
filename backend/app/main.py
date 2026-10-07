@@ -13,6 +13,7 @@ from app.events import router as events_router
 from app.recovery import router as recovery_router
 from app.event_reads import router as event_reads_router
 from app.incident_reads import router as incident_reads_router
+from app.dashboard import router as dashboard_router
 
 app = FastAPI(title="Tracely API", version="0.1.0")
 app.add_middleware(
@@ -30,6 +31,7 @@ app.include_router(projects_router)
 app.include_router(events_router)
 app.include_router(event_reads_router)
 app.include_router(incident_reads_router)
+app.include_router(dashboard_router)
 
 
 @app.exception_handler(RequestValidationError)

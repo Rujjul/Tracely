@@ -68,7 +68,7 @@ Phase 5's separate demo service, fault controls, telemetry behavior, and local s
 
 ## Phase 6 live event explorer (implemented)
 
-Sign in, open **Events**, and select an owned project. Stored events appear newest received first. Filter by exact service, level, received time in UTC, or text; use Next/Previous to browse pages and Refresh events to load new arrivals. Inspect an event to see its original timestamp, status, latency, stack trace, and metadata. If the project has no events, send telemetry using its ingestion key or the Phase 5 demo first. Overview charts/recent sample events and incidents remain previews.
+Sign in, open **Events**, and select an owned project. Stored events appear newest received first. Filter by exact service, level, received time in UTC, or text; use Next/Previous to browse pages and Refresh events to load new arrivals. Inspect an event to see its original timestamp, status, latency, stack trace, and metadata. If the project has no events, send telemetry using its ingestion key or the Phase 5 demo first. Overview and Incidents now read stored project data (Phase 9).
 
 The read API uses owner session authentication and project-scoped queries. See [API.md](API.md) for filter and pagination semantics. No new migration or dependency is required for Phase 6; restart the existing API to load the routes. Run the backend suite with `.venv/Scripts/python.exe -m pytest tests -q` from `backend` and build the frontend with `npm.cmd run build` from `frontend`.
 
@@ -78,7 +78,7 @@ From `backend`, apply `.venv/Scripts/python.exe -m alembic upgrade head`, then r
 
 Default rules use a five-minute window, at least 20 requests/five failures, and a 10% failure rate across two evaluations; recovery needs two sufficiently busy windows below 5%. Low traffic keeps active incidents open. Configure the documented `DETECTOR_*` settings in the root `.env` and restart the worker when changing them. Full semantics, lifecycle fields, and testing are in [backend/DETECTOR.md](backend/DETECTOR.md).
 
-The existing Incidents screen remains sample data; real incident browsing and exception grouping belong to subsequent phases. Project deletion also removes its incidents and detector state atomically.
+The Incidents screen now lists stored incidents with filters and links to grouped exception evidence. Project deletion also removes its incidents and detector state atomically.
 
 ## Password recovery (implemented)
 
@@ -100,3 +100,11 @@ SMTP_PASSWORD=your-google-app-password
 Use a [Google App Password](https://support.google.com/accounts/answer/185833?hl=en), requiring 2-Step Verification, rather than your ordinary Gmail password or OAuth client secret. Some managed/Advanced Protection accounts do not offer App Passwords. SMTP also supports `SMTP_SECURITY=ssl` with port 465. Other providers can use the same settings; [Resend](https://resend.com/docs/send-with-smtp) requires a verified sending domain.
 
 Keep `FRONTEND_URL=http://127.0.0.1:5173` locally and open the link on the computer running Tracely. For deployment, use your HTTPS frontend URL. Reset tokens are in the link fragment so they are not sent in page requests or referrer headers. Missing email setup gives a clear availability error. Delivery failures are logged without account details; requests receive a generic message to avoid revealing whether an email is registered. Background delivery is not a durable queue: if delivery fails or the process stops, request another link after one minute. Live inbox delivery requires configured credentials and a manual check.
+
+## Phase 9: overview and incident dashboard
+
+Apply migrations from `backend` with `.\.venv\Scripts\python.exe -m alembic upgrade head`, then restart FastAPI. The frontend retains its existing startup command.
+
+Sign in and choose an owned project in **Overview**. Select the last hour, 24 hours or seven days, optionally filter an exact service name, and use **Apply / refresh overview**. Counts and chart buckets use server-received times in UTC. No requests means an unavailable rate/median, not an invented zero. Active incidents show the current stored total independent of the event window. Service evaluation timestamps help identify stale detector data.
+
+Open **Incidents**, select a project, filter status/service/first-failure time, and click **Inspect** on a row. No manual UUID lookup is needed. The details show lifecycle, detector policy and grouped evidence; events open their stored stack traces. Refresh the list after detector activity. If empty, clear filters and ensure the worker has confirmed sustained failures for that project. Investigations remain Phase 10.
