@@ -4,6 +4,12 @@ TraceAI is a local-first incident investigation MVP. A monitored backend sends s
 
 > Status: build specification, not an implemented product. The examples and thresholds are proposed defaults; benchmark results must be measured.
 
+## Deployed frontend
+
+Tracely's frontend is hosted on Vercel: [https://tracely-rs.vercel.app/](https://tracely-rs.vercel.app/).
+
+Use `https://tracely-rs.vercel.app` as the production `FRONTEND_URL` and an allowed `CORS_ORIGINS` origin when configuring the backend. The frontend's `VITE_API_BASE_URL` must point to the public HTTPS backend. Google OAuth's production callback uses the backend domain. Production backend connectivity and authentication are not verified by this documentation update; local settings remain unchanged.
+
 ## Start here
 
 1. Read [BUILD.md](BUILD.md) for the 14-session sequence and acceptance checks.
