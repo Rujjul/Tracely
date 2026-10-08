@@ -7,9 +7,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api-unavailable.json",
-      "status": 503,
-      "headers": { "Cache-Control": "no-store" }
+      "dest": "https://tracely-api-mlqu.onrender.com/api/$1"
     },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }

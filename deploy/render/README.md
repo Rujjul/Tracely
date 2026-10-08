@@ -1,6 +1,6 @@
 # Render Free + Neon Free
 
-Prepared on 2026-10-08. Accounts and live integration are pending. This replaces the proposed Oracle deployment; it does not modify local development or application logic.
+Deployed on 2026-10-08: API https://tracely-api-mlqu.onrender.com; frontend https://tracely-rs.vercel.app. Public password authentication, ingestion and dashboard API smoke checks passed. Google credential rotation/consent, worker, email and backups remain pending; see progress.md. This replaces the proposed Oracle deployment; it does not modify local development or application logic.
 
 ## Account setup
 
@@ -29,7 +29,7 @@ Render provides an HTTPS `onrender.com` hostname, so no separate DNS provider is
 {"src":"/api/(.*)","dest":"https://<actual-render-host>/api/$1"}
 ```
 
-Remove that route's old 503 status and preview headers. Retain the filesystem/SPA routes and `VITE_API_BASE_URL=/` build setting. Redeploy Vercel. Browser requests then remain on the Vercel origin, preserving existing SameSite=Lax session and OAuth-state cookies. Do not point the browser directly at a different-site Render API. This cutover is deliberately not applied while accounts/URLs are unknown.
+Remove that route's old 503 status and preview headers. Retain the filesystem/SPA routes and `VITE_API_BASE_URL=/` build setting. Redeploy Vercel. Browser requests then remain on the Vercel origin, preserving existing SameSite=Lax session and OAuth-state cookies. Do not point the browser directly at a different-site Render API. This cutover was applied and verified on 2026-10-08.
 
 ## Free-tier limitations requiring a decision
 

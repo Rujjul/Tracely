@@ -1,6 +1,17 @@
 # Tracely progress
 
-Updated: 2026-10-07
+Updated: 2026-10-08
+
+## Render + Neon deployment — 2026-10-08
+
+- [x] Deployed API on Render Free in Ohio: https://tracely-api-mlqu.onrender.com. Existing migrations ran successfully against the user's fresh Neon Free PostgreSQL 18 database. Public health reports storage connected.
+- [x] Connected https://tracely-rs.vercel.app to Render through a same-origin Vercel API proxy. Retained secure HTTP-only session cookies, existing application logic and local development setup. Vercel production deployment: dpl_GGxBMha8St78MEdA87pnBQ26Ss3H.
+- [x] Public smoke checks passed: registration, session, secure cookie, logout, password login, project/key creation, ingestion, idempotent replay, event listing, dashboard overview, and unauthenticated access rejection. No local listeners were found on 5173/8000. Synthetic project/events/keys were deleted; one synthetic test account remains.
+- [x] Deployment startup script syntax and frontend production build passed. Deployment setup committed as 41ce170; no paid compute or Render database provisioned.
+- [x] User accepted demo limitations: Render idle sleep, continuous detector pending, SMTP password-reset delivery pending. Worker was not deployed and incident lifecycle was not verified in the cloud.
+- [ ] Google login remains pending: credential values initially included surrounding quotes. Browser tool output accidentally exposed the old Google client secret; user was asked to rotate it and enter the replacement privately without quotes. Rotation and end-to-end Google consent still require verification. No secret values are recorded here.
+- [ ] Cloud backups/restore, quota monitoring and cold-start behavior remain unverified. No existing local accounts/events were imported.
+- [ ] Vercel build reported one high-severity dependency audit finding; investigate separately without an unreviewed dependency upgrade.
 
 ## Current scope
 
