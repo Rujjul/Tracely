@@ -4,6 +4,7 @@ import { Activity, ArrowRight, Check, ChevronDown, CircleHelp, Database, Externa
 import Projects from './Projects'
 import Events from './Events'
 import Dashboard from './Dashboard'
+import GuidedDemo from './GuidedDemo'
 
 type Page = 'Overview' | 'Events' | 'Incidents' | 'Setup' | 'Projects'
 const api = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
@@ -39,7 +40,8 @@ export default function App({ onExpired }: { onExpired: () => void }) {
         {page === 'Projects' && <Projects onExpired={onExpired}/>}
         {page === 'Events' && <Events onExpired={onExpired} onProjects={() => nav('Projects')}/>}
         {(page === 'Overview' || page === 'Incidents') && <Dashboard mode={page} onExpired={onExpired} onProjects={() => nav('Projects')}/>}
-        {page==='Setup' && <div className="setup-grid"><section className="panel setup"><h2>Your local foundation</h2><p>The frontend is ready to explore. Start the Python API to connect the health indicator.</p><h3>1. Start the backend</h3><pre>cd backend{'\n'}py -m venv .venv{'\n'}.venv\Scripts\python -m pip install -r requirements.txt{'\n'}.venv\Scripts\python -m uvicorn app.main:app --reload</pre><h3>2. Start the frontend</h3><pre>cd frontend{'\n'}npm install{'\n'}npm run dev</pre><a className="primary" href={`${api}/docs`} target="_blank" rel="noreferrer">Open API documentation <ExternalLink size={15}/></a></section><section className="panel setup"><h2>What’s connected</h2><ul className="checklist"><li><Check/>React + TypeScript + Vite</li><li><Check/>FastAPI health endpoint</li><li><Check/>Live project event explorer</li><li><Check/>Stored overview and incident dashboard</li></ul><h3>Coming in later phases</h3><p>Evidence-based investigations.</p><div className="setup-note">PostgreSQL is available through Docker Compose. Dashboard values come from stored project data.</div></section></div>}
+        {page === 'Setup' && <GuidedDemo onProjects={() => nav('Projects')}/>}
+        {page==='Setup' && <div className="setup-grid"><section className="panel setup"><h2>Your local foundation</h2><p>The frontend is ready to explore. Start the Python API to connect the health indicator.</p><h3>1. Start the backend</h3><pre>cd backend{'\n'}py -m venv .venv{'\n'}.venv\Scripts\python -m pip install -r requirements.txt{'\n'}.venv\Scripts\python -m uvicorn app.main:app --reload</pre><h3>2. Start the frontend</h3><pre>cd frontend{'\n'}npm install{'\n'}npm run dev</pre><a className="primary" href={`${api}/docs`} target="_blank" rel="noreferrer">Open API documentation <ExternalLink size={15}/></a></section><section className="panel setup"><h2>What’s connected</h2><ul className="checklist"><li><Check/>React + TypeScript + Vite</li><li><Check/>FastAPI health endpoint</li><li><Check/>Live project event explorer</li><li><Check/>Stored overview and incident dashboard</li></ul><h3>Coming in later phases</h3><p>Optional local AI drafting.</p><div className="setup-note">PostgreSQL is available through Docker Compose. Dashboard values come from stored project data.</div></section></div>}
         <footer><span><Activity size={14}/> Tracely · Make sense of the signals.</span><span>Local-first investigation workspace</span></footer>
       </div>
     </main>

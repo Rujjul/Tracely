@@ -75,7 +75,51 @@ Return 201 after persistence, 200 for a replay. Batch ingestion is deferred unti
 
 Implemented Phase 4 validation: `event_type` is `request` or `exception`; `level` is `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `CRITICAL`, or `FATAL`. Field types are strict, unknown fields are rejected, and service names must be nonblank (maximum 255 characters). Optional endpoint and exception type are each capped at 2 KiB UTF-8. Metadata must be a JSON object. Unsupported content types or compressed bodies return 415; malformed JSON and invalid fields return 422; body or field size violations return 413. A per-key limit of 600 attempts per rolling minute returns 429 with `Retry-After` (local single-process enforcement). Common secret patterns are redacted before storage. A replay preserves the originally stored event even if retry fields differ. Owner-only event-reading endpoints were subsequently added in Phase 6, as documented above.
 
-## Investigation response
+## Debugging brief (Phase 9.5)
+
+`GET /api/v1/projects/{project_id}/incidents/{incident_id}/debugging-brief`
+returns `{"text": "...", "synthetic": false}`. Requires the owner session;
+missing authentication is 401, inaccessible projects/incidents are 404. Ingestion
+keys never authorize exports. Responses are not cached. No external AI is called.
+
+The plain-text export contains at most ten newest correlated event citations and
+clipped messages/endpoints, project/service context, timestamps, detector counters,
+recorded rolling-window length and evidence limitations. Exact counter evaluation
+time is not stored on the incident and is labeled unavailable. Metadata and full
+stacks are omitted. Common secrets and obvious contact data are scrubbed, but the
+preview must still be reviewed before sharing. The endpoint creates no new records.
+
+In the UI choose **Incidents → Inspect → Copy debugging brief**, review the preview,
+then copy or select the text manually. **Setup** offers a five-step synthetic demo
+without production telemetry; its sample citation refers to the displayed example,
+not a stored event. To verify a real fix, test affected paths and healthy/failing
+requests, inspect fresh telemetry, check detector evaluation timestamps, and refresh
+manually. An incident resolving does not prove the entire application is correct.
+
+## Investigation response (Phase 10)
+
+Phase 10 implemented: `POST /projects/{project_id}/incidents/{incident_id}/investigate`
+requires an owner session and trusted Origin. It saves a new version and returns the
+result below plus its `id`. `GET /projects/{project_id}/incidents/{incident_id}/investigation`
+returns `{"investigation": result}` for the latest saved version, or null before the
+first run. Both enforce project/incident ownership and return `Cache-Control: no-store`.
+Project deletion cascades to saved investigations.
+
+Rules v1 selects at most 200 same-project, same-service stored events from five
+minutes before onset through the last failure (or resolution). A 24-hour maximum
+keeps the most recent part of a longer interval and explicitly reports the omission.
+Failures/exceptions rank before healthy requests, then newest received time and ID.
+All counts are labeled sample counts; exception-only events never inflate request
+counts. At most ten error groups have scrubbed representative excerpts, with stacks
+clipped to 1,000 characters. Metadata is excluded. Each observation and candidate
+cause cites selected stored `event_id` values; no model or external service is called.
+The sample is not an unbiased error-rate estimate. A five-second statement timeout
+bounds query execution. Refresh creates another snapshot; saved citations can become
+unavailable if underlying events are later removed. No evidence means no hypothesis.
+
+Apply Alembic migration `0009_investigations` before use. In incident details, choose
+**Run investigation**, expand cited events to inspect them, or **Refresh investigation**
+to save a newer version. Previous versions remain in storage; the UI shows the latest.
 
 ```json
 {

@@ -1,6 +1,6 @@
 # Tracely progress
 
-Updated: 2026-10-08
+Updated: 2026-10-09
 
 ## Render + Neon deployment — 2026-10-08
 
@@ -12,6 +12,27 @@ Updated: 2026-10-08
 - [ ] Google login remains pending: credential values initially included surrounding quotes. Browser tool output accidentally exposed the old Google client secret; user was asked to rotate it and enter the replacement privately without quotes. Rotation and end-to-end Google consent still require verification. No secret values are recorded here.
 - [ ] Cloud backups/restore, quota monitoring and cold-start behavior remain unverified. No existing local accounts/events were imported.
 - [ ] Vercel build reported one high-severity dependency audit finding; investigate separately without an unreviewed dependency upgrade.
+
+## Phase 9.5 — guided demo and debugging brief
+
+- [x] Added a five-step, explicitly synthetic walkthrough under Setup: demo project, failure, grouped evidence, brief preview/copy and recovery. Supports back/next, skip/restart, keyboard focus and Projects navigation; no telemetry or fault controls are invoked.
+- [x] Added owner-only `GET /projects/{project_id}/incidents/{incident_id}/debugging-brief`, integrated into real incident details. Exports at most ten cited events, clipped excerpts, project/service context, incident timestamps, detector counts/window length and evidence omissions. Exact counter evaluation time is honestly marked unavailable.
+- [x] Redacts common credentials, email addresses, IPv4 addresses and phone-like strings. Omits metadata and full stacks; warns that redaction is best effort and requires review before sharing.
+- [x] Preview precedes copying, with copy feedback and an always-available manual selection fallback. Briefs tell a coding assistant to inspect evidence/code, separate facts/hypotheses, propose a minimal fix and explain tests/rollback. Nothing is sent to an AI automatically.
+- [x] All 67 backend tests passed, including ownership, cross-project isolation, ingestion-key rejection, citations, redaction, clipping and missing evidence. Frontend production build passed.
+- [x] Browser component smoke checks passed: keyboard next-step/focus, evidence disclosure, preview, clipboard success, full manual selection, recovery, project callback, skip/restart and no horizontal overflow at 390px. The harness was removed afterward; real authenticated endpoint behavior was covered by integration tests.
+- [ ] Production deployment is not performed by this task. Phase 9.5 and Phase 10 remain local changes.
+
+## Phase 10 — deterministic investigations
+
+- [x] Added data-model-aligned `investigations` table in migration `0009_investigations`, with UUIDs, JSONB evidence fields, UTC creation times, latest-version index and cascading incident/project deletion. Applied to local PostgreSQL; production migration is not applied by this task.
+- [x] Added owner-only investigation run/refresh and latest-result endpoints. Mutations require the trusted browser origin; ingestion keys cannot read or run investigations.
+- [x] Bounded retrieval to 200 same-project/service events and 24 hours, including five-minute pre-onset context where available. Deterministic error ranking, sample-only request counts, ten representative groups, clipped/redacted stacks, event citations, explicit truncation/missing-evidence limits and unverified candidate causes. No model or external calls.
+- [x] Integrated Run/Refresh investigation into incident details, with saved result loading, citation buttons opening existing event details, excerpt disclosure, loading/error/retry states and mobile wrapping. Historical versions persist; UI retrieves latest only.
+- [x] All **65 backend tests passed**, including new coverage for ownership, trusted Origin, citations, saved versions, project deletion cascade, time boundaries, limits, redaction and absent evidence. Frontend production build passed; diff whitespace check passed.
+- [ ] Live-browser interaction/accessibility smoke check and production deployment remain pending. This implementation has not been pushed or deployed to Render/Vercel.
+
+Phase 9.5 is now implemented locally; Phase 11 optional model drafting is not started. The cloud detector remains unavailable under the accepted free-tier deployment limits.
 
 ## Current scope
 
@@ -300,8 +321,8 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 | 7. Incident detector | Complete; persistent worker and incident lifecycle tested | Keep the worker running; Phase 9 now displays stored incidents |
 | 8. Exception grouping | Complete; fingerprints, historical backfill, owner-only incident details implemented | None |
 | 9. Incident dashboard | Complete; owner-scoped overview, filters, pagination, clickable evidence implemented | None |
-| 9.5. Guided demo & debugging brief | Planned; not started | Guided synthetic incident walkthrough; preview/copy scrubbed evidence with citations, focused AI debugging instructions, ownership checks, and browser/API verification. Acceptance criteria in `BUILD.md`. |
-| 10. Evidence investigation | Not started | Bounded retrieval and cited rule summaries |
+| 9.5. Guided demo & debugging brief | Implemented locally | Production deployment pending |
+| 10. Evidence investigation | Implemented locally | Production deployment and browser smoke verification pending |
 | 11. Optional local AI | Not started | Model validation and fallback |
 | 12. Evaluation | Not started | Controlled scenarios, integration tests, metrics |
 | 13. Docker delivery | Not started (database foundation ready) | App containers, startup migrations, complete demo delivery |
@@ -309,7 +330,7 @@ Run auth tests from `backend` with `.\.venv\Scripts\python.exe -m pytest tests -
 
 ## Limitations
 
-- Evidence-based investigation remains future work (Phase 10).
+- Deterministic investigation is implemented locally (Phase 10); optional model drafting remains Phase 11.
 - Dashboard refresh is manual; automatic polling is not implemented.
 - The detector requires a running worker. When it stops, incident status and detector state remain unchanged; check evaluation timestamps for freshness.
 - Email verification for password registrations is not implemented.

@@ -1,6 +1,13 @@
 """Tracely API and Phase 2 account authentication."""
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load local settings before configuring routes and middleware. Deployment
+# environment variables retain precedence over values in this file.
+load_dotenv(Path(__file__).resolve().parents[2] / '.env')
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +21,8 @@ from app.recovery import router as recovery_router
 from app.event_reads import router as event_reads_router
 from app.incident_reads import router as incident_reads_router
 from app.dashboard import router as dashboard_router
+from app.investigations import router as investigations_router
+from app.debugging_briefs import router as debugging_briefs_router
 
 app = FastAPI(title="Tracely API", version="0.1.0")
 app.add_middleware(
@@ -32,6 +41,8 @@ app.include_router(events_router)
 app.include_router(event_reads_router)
 app.include_router(incident_reads_router)
 app.include_router(dashboard_router)
+app.include_router(investigations_router)
+app.include_router(debugging_briefs_router)
 
 
 @app.exception_handler(RequestValidationError)

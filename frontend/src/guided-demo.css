@@ -1,0 +1,14 @@
+.guided-demo { padding:24px; margin-bottom:24px; overflow-wrap:anywhere; }
+.guided-demo h2 { margin:12px 0; }
+.guided-demo p,.guided-demo li { line-height:1.7; }
+.demo-steps { display:flex; flex-wrap:wrap; gap:12px 28px; padding-left:24px; color:#53665f; }
+.demo-steps [aria-current="step"] { color:#163f36; font-weight:700; }
+.demo-controls { display:flex; flex-wrap:wrap; gap:16px; margin-top:20px; }
+.guided-demo summary { cursor:pointer; overflow-wrap:anywhere; }
+.guided-demo dd { margin:4px 0 12px; }
+.guided-demo button:disabled { opacity:.5; cursor:not-allowed; }
+.debugging-brief { margin:20px 0; overflow-wrap:anywhere; }
+.debugging-brief textarea { display:block; box-sizing:border-box; width:100%; max-width:100%; margin:12px 0; padding:12px; background:#fffef8; color:#163f36; border:1px solid #b9c9be; border-radius:8px; font:12px/1.6 monospace; resize:vertical; }
+.debugging-brief button { margin-right:16px; }
+.guided-demo :focus-visible,.debugging-brief :focus-visible { outline:3px solid #277c65; outline-offset:3px; }
+@media(max-width:600px) { .guided-demo { padding:16px; } .demo-steps { display:block; } }

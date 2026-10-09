@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { EventDetail } from './Events'
+import Investigation from './Investigation'
+import DebuggingBrief from './DebuggingBrief'
 import './incidents.css'
 
 const api = (import.meta.env.VITE_API_BASE_URL || `${location.protocol}//${location.hostname}:8000`).replace(/\/$/, '')
@@ -46,6 +48,8 @@ export default function IncidentDetails({ project, id, onExpired }: { project: s
       {data.evidence.events.map(event => <button className="incident-evidence" key={event.event_id} onClick={() => setSelected(event.event_id)}><span>{event.message}</span><small>{utc(event.received_at)} · {event.event_id}</small><span>Inspect event →</span></button>)}
       {data.evidence.events_truncated && <p>Showing the latest 50 events. Use the Events page to browse more in this service and time interval.</p>}
       <h3>Evidence limitations</h3><ul>{data.evidence.limitations.map(text => <li key={text}>{text}</li>)}</ul>
+      <Investigation key={`${project}:${id}`} project={project} incident={id} onExpired={onExpired} onEvent={setSelected}/>
+      <DebuggingBrief key={`brief:${project}:${id}`} project={project} incident={id} onExpired={onExpired}/>
     </>}
     {selected && <EventDetail project={project} id={selected} onExpired={onExpired} onClose={() => setSelected(null)}/>}
   </section>
